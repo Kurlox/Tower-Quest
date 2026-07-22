@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d0b1a" />
+  <title>Tower Quest : Curiosity</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%230d0b1a'/><rect x='5' y='2' width='6' height='12' fill='%237c5cff'/><rect x='6' y='4' width='4' height='3' fill='%2337e0c8'/></svg>" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="game-root">
+    <canvas id="game"></canvas>
+
+    <!-- HUD -->
+    <div id="hud">
+      <div id="hud-left">
+        <span id="floor-label">Étage —</span>
+        <span id="deaths-label">☠ 0</span>
+      </div>
+      <button id="btn-menu" class="hud-btn" title="Menu">☰</button>
+    </div>
+
+    <!-- Message flottant (hint / dead-end / etc.) -->
+    <div id="toast"></div>
+
+    <!-- Contrôles tactiles -->
+    <div id="touch-controls">
+      <div class="pad-left">
+        <button class="tbtn" data-key="left">◀</button>
+        <button class="tbtn" data-key="right">▶</button>
+      </div>
+      <div class="pad-mid">
+        <button class="tbtn small" data-key="up">▲</button>
+        <button class="tbtn small" data-key="down">▼</button>
+      </div>
+      <div class="pad-right">
+        <button class="tbtn" data-key="action">⤒</button>
+        <button class="tbtn jump" data-key="jump">SAUT</button>
+      </div>
+    </div>
+
+    <!-- Overlays -->
+    <div id="overlay" class="overlay">
+      <div class="overlay-card" id="overlay-card">
+        <!-- rempli par JS -->
+      </div>
+    </div>
+  </div>
+
+  <script src="js/utils.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/maze.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
