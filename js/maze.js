@@ -193,8 +193,22 @@
             openSpots.push({ x, y });
       this.rng.shuffle(openSpots);
       const tps = opts.teleporters || [];
-      for (let i = 0; i < tps.length && i < openSpots.length; i++) {
-        ents.push({ type: "teleporter", variant: tps[i], tx: openSpots[i].x, ty: openSpots[i].y, cooldown: 0 });
+      let spotIdx = 0;
+      for (let i = 0; i < tps.length && spotIdx < openSpots.length; i++, spotIdx++) {
+        ents.push({ type: "teleporter", variant: tps[i], tx: openSpots[spotIdx].x, ty: openSpots[spotIdx].y, cooldown: 0 });
+      }
+
+      // -- Lanterne (item « Flash ») : révèle tout le labyrinthe. On la place
+      // de préférence loin de l'entrée pour que ce soit un vrai choix.
+      if (opts.flash !== false) {
+        let best = null, bestD = -1;
+        const enTxC = 2 * this.entranceCell.x + 1, enTyC = 2 * this.entranceCell.y + 1;
+        for (let k = spotIdx; k < openSpots.length; k++) {
+          const s = openSpots[k];
+          const d = Math.abs(s.x - enTxC) + Math.abs(s.y - enTyC);
+          if (d > bestD) { bestD = d; best = s; }
+        }
+        if (best) ents.push({ type: "flash", tx: best.x, ty: best.y });
       }
 
       // -- Marqueur de sortie / cul-de-sac.

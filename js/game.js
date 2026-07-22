@@ -97,7 +97,8 @@
         <div class="keys">
           <b>PC :</b> Flèches / ZQSD pour bouger · <b>Espace</b> saut ·
           <b>Entrée/E</b> entrer dans une porte · <b>Échap</b> ressortir<br>
-          <b>Mobile :</b> boutons à l'écran
+          <b>Mobile :</b> glisse le doigt pour bouger/grimper · tape pour sauter
+          · 🏮 trouve la lanterne pour révéler le labyrinthe
         </div>
         <button class="btn" id="btn-play">JOUER</button>
       `);
@@ -287,7 +288,7 @@
     _updateHub(input) {
       const p = this.player;
       // Entrer dans une porte : proche + au sol + action/haut.
-      if ((input.pressed("action") || input.pressed("up"))) {
+      if ((input.pressed("action") || input.pressed("up") || input.pressed("jump"))) {
         for (const d of this.scene.entities) {
           if (d.type !== "door") continue;
           const doorCx = (d.tx + 0.5) * T;
@@ -326,6 +327,13 @@
           }
         } else if (e.type === "exit") {
           if (p.overlapsTile(e.tx, e.ty, 4)) { this._reachExit(); return; }
+        } else if (e.type === "flash") {
+          if (!e.taken && p.overlapsTile(e.tx, e.ty, 3)) {
+            e.taken = true;         // masquée par le renderer une fois prise
+            maze.revealed = true;   // le brouillard disparaît
+            this.flash = 14;
+            this.toast("🏮 Lanterne ! Labyrinthe révélé.", 2400);
+          }
         } else if (e.type === "deadend") {
           if (p.overlapsTile(e.tx, e.ty, 4)) {
             this.toast("✗ Sans issue ! Retourne à l'entrée (▼).", 2600);
@@ -380,12 +388,17 @@
 
     /* ============================ Rendu ============================ */
     render() {
+      const fog = this.mode === "maze";
+      const scene = {
+        maze: this.scene, player: this.player, floorIndex: this.floorIndex,
+        fog, revealed: this.scene ? this.scene.revealed : false
+      };
       if (this.mode === "menu" || this.mode === "end") {
-        // Fond animé minimal derrière l'overlay.
+        // Fond animé minimal derrière l'overlay (sans brouillard).
         if (this.scene) this.renderer.render({ maze: this.scene, player: this.player, floorIndex: this.floorIndex });
         return;
       }
-      this.renderer.render({ maze: this.scene, player: this.player, floorIndex: this.floorIndex });
+      this.renderer.render(scene);
       if (this.flash > 0) {
         const ctx = this.renderer.ctx;
         ctx.setTransform(this.renderer.dpr, 0, 0, this.renderer.dpr, 0, 0);

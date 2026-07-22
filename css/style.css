@@ -91,43 +91,6 @@ canvas#game {
 }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* ---------- Touch controls ---------- */
-#touch-controls {
-  position: absolute;
-  left: 0; right: 0; bottom: 0;
-  display: none;
-  justify-content: space-between;
-  align-items: flex-end;
-  padding: 0 16px max(16px, env(safe-area-inset-bottom));
-  z-index: 5;
-  pointer-events: none;
-}
-body.touch #touch-controls { display: flex; }
-
-.pad-left, .pad-right, .pad-mid { display: flex; gap: 12px; align-items: flex-end; pointer-events: none; }
-.pad-mid { flex-direction: column; gap: 10px; }
-
-.tbtn {
-  pointer-events: auto;
-  width: 62px; height: 62px;
-  border-radius: 50%;
-  border: 2px solid rgba(124, 92, 255, 0.7);
-  background: rgba(30, 22, 60, 0.55);
-  color: var(--ink);
-  font-size: 24px;
-  font-weight: bold;
-  display: flex; align-items: center; justify-content: center;
-  backdrop-filter: blur(2px);
-}
-.tbtn.small { width: 52px; height: 52px; font-size: 20px; }
-.tbtn.jump {
-  width: 78px; height: 78px;
-  font-size: 15px;
-  background: rgba(124, 92, 255, 0.4);
-  border-color: var(--accent2);
-}
-.tbtn.active { background: rgba(124, 92, 255, 0.75); transform: scale(0.94); }
-
 /* ---------- Overlay ---------- */
 .overlay {
   position: absolute;

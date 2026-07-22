@@ -17,6 +17,7 @@
       this.cam = { x: 0, y: 0 };
       this.scale = 2;
       this.time = 0;
+      this.visionTiles = 3.4; // rayon de vision (en tuiles) sous le brouillard
       this.resize();
       window.addEventListener("resize", () => this.resize());
     }
@@ -66,6 +67,26 @@
       this._drawPlayer(player);
 
       ctx.restore();
+
+      // Brouillard « à la Pokémon » : tout est noir sauf un halo autour du
+      // joueur, sauf si le labyrinthe a été révélé (lanterne ramassée).
+      if (scene.fog && !scene.revealed) this._fog(player);
+    }
+
+    _fog(player) {
+      const ctx = this.ctx;
+      ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+      const sx = (player.cx - this.cam.x) * this.scale;
+      const sy = (player.cy - this.cam.y) * this.scale;
+      const r = this.visionTiles * T * this.scale;
+      const flick = 1 + 0.03 * Math.sin(this.time * 0.3); // léger vacillement
+      const g = ctx.createRadialGradient(sx, sy, r * 0.32, sx, sy, r * flick);
+      g.addColorStop(0, "rgba(4,3,10,0)");
+      g.addColorStop(0.62, "rgba(4,3,10,0.35)");
+      g.addColorStop(0.85, "rgba(4,3,10,0.82)");
+      g.addColorStop(1, "rgba(4,3,10,0.985)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, this.vw, this.vh);
     }
 
     _background(scene) {
@@ -150,12 +171,14 @@
       const { ctx } = this;
       const tpx = this.time;
       for (const e of scene.maze.entities) {
+        if (e.taken) continue; // lanterne déjà ramassée
         const px = e.tx * T, py = e.ty * T;
         switch (e.type) {
           case "spike": this._spike(px, py); break;
           case "teleporter": this._teleporter(px, py, e.variant, tpx); break;
           case "exit": this._exit(px, py, tpx); break;
           case "deadend": this._deadend(px, py); break;
+          case "flash": this._flash(px, py, tpx); break;
           case "door": this._door(px, py, e, tpx); break;
         }
       }
@@ -231,6 +254,30 @@
       ctx.moveTo(cx - 7, cy - 7); ctx.lineTo(cx + 7, cy + 7);
       ctx.moveTo(cx + 7, cy - 7); ctx.lineTo(cx - 7, cy + 7);
       ctx.stroke();
+    }
+
+    _flash(px, py, tpx) {
+      const { ctx } = this;
+      const cx = px + T / 2, cy = py + T / 2;
+      const pulse = 0.5 + 0.5 * Math.sin(tpx * 0.14);
+      // Halo lumineux (visible même dans le brouillard une fois proche).
+      const g = ctx.createRadialGradient(cx, cy, 1, cx, cy, T * (0.9 + 0.2 * pulse));
+      g.addColorStop(0, "rgba(255,240,180,0.9)");
+      g.addColorStop(0.5, "rgba(255,210,90,0.35)");
+      g.addColorStop(1, "rgba(255,210,90,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(px - T, py - T, T * 3, T * 3);
+      // Lanterne (petit corps + anse).
+      ctx.strokeStyle = "#caa24a"; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(cx, cy - 6, 3, Math.PI, 0); ctx.stroke();
+      ctx.fillStyle = "#3a2f14";
+      ctx.fillRect(cx - 4, cy - 5, 8, 3);
+      ctx.fillStyle = "#ffe08a";
+      ctx.fillRect(cx - 4, cy - 2, 8, 8);
+      ctx.fillStyle = "#fff4c2";
+      ctx.fillRect(cx - 2, cy, 4, 5);
+      ctx.fillStyle = "#3a2f14";
+      ctx.fillRect(cx - 4, cy + 6, 8, 2);
     }
 
     _door(px, py, e, tpx) {

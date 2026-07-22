@@ -13,11 +13,10 @@
     // Poignée de debug (inspection console / tests automatisés).
     window.__TQ_GAME = game;
 
-    // Contrôles tactiles si écran tactile.
-    if (TQ.isTouchDevice()) {
-      document.body.classList.add("touch");
-    }
-    TQ.Input.bindTouch();
+    // Contrôles tactiles : glissement du doigt sur toute la surface de jeu.
+    const isTouch = TQ.isTouchDevice();
+    if (isTouch) document.body.classList.add("touch");
+    TQ.Input.bindDrag(canvas);
 
     // Bouton menu (pause simple / retour menu).
     document.getElementById("btn-menu").addEventListener("click", () => {

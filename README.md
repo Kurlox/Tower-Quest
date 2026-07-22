@@ -22,13 +22,17 @@ Aucune dépendance : ouvre le jeu dans un navigateur.
 
 ### Contrôles
 
-| Action                 | PC                          | Mobile            |
-|------------------------|-----------------------------|-------------------|
-| Se déplacer            | Flèches / ZQSD              | ◀ ▶               |
-| Grimper aux échelles   | Haut / Bas                  | ▲ ▼               |
-| Sauter                 | Espace                      | SAUT              |
-| Entrer dans une porte  | Entrée / E (ou Haut)        | ⤒                 |
-| Ressortir d'un couloir | Échap (ou Bas à l'entrée)   | ▼ à l'entrée      |
+Sur mobile, **aucun bouton à l'écran** : on **glisse le doigt** n'importe où
+pour se déplacer (droite = à droite, haut/bas = grimper) et on **tape** pour
+sauter.
+
+| Action                 | PC                          | Mobile                  |
+|------------------------|-----------------------------|-------------------------|
+| Se déplacer            | Flèches / ZQSD              | glisser ◀ ▶             |
+| Grimper aux échelles   | Haut / Bas                  | glisser ▲ ▼             |
+| Sauter                 | Espace                      | tap (toucher bref)      |
+| Entrer dans une porte  | Entrée / E (ou Haut)        | glisser vers le haut / tap |
+| Ressortir d'un couloir | Échap (ou Bas à l'entrée)   | glisser vers le bas à l'entrée |
 
 ## 🏗️ Structure de la tour
 
@@ -46,6 +50,13 @@ Aucune dépendance : ouvre le jeu dans un navigateur.
 La **largeur de la tour reste constante** ; à chaque étage les labyrinthes
 « fusionnent » et gagnent en **hauteur**, agrandissant la tour à mesure qu'on
 monte.
+
+### 🔦 Brouillard & lanterne
+
+Dans les labyrinthes, on ne voit qu'une **petite zone autour du personnage**
+(comme dans les vieux Pokémon sans Flash) : le reste est plongé dans le noir.
+Chaque labyrinthe cache une **🏮 lanterne** ; la ramasser **révèle tout le
+labyrinthe** et dissipe le brouillard.
 
 ## 🧩 Aspects techniques
 
