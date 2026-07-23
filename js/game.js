@@ -125,7 +125,7 @@
       const maze = TQ.generateMaze({
         cols: 6, rows: 4, seed, hasExit: true,
         braid: 0.05, spikes: 1,
-        teleporters: ["closer", "far", "entrance"]
+        teleporters: ["closer", "entrance"] // 2 max (rapproche + renvoie à l'entrée)
       });
       this.scene = maze;
       this.mode = "maze";
@@ -188,16 +188,16 @@
       const seed = TQ.makeSeed(this.runSeed, f, doorIndex + 1);
       const rng = new TQ.RNG(seed);
       if (def.kind === "final") {
-        // Labyrinthe géant ultra dur.
+        // Labyrinthe géant ultra dur (2 téléporteurs max, comme partout).
         return {
           cols: TOWER_WIDTH, rows: 26, seed, hasExit: true, braid: 0.14,
           spikes: 16,
-          teleporters: this._teleMix(rng, 6, true)
+          teleporters: this._teleMix(rng, 2, true)
         };
       }
       const rows = 5 + f * 2;                 // hauteur croissante → tour qui grandit
       const spikes = 2 + f * 2;
-      const nTele = 1 + f;
+      const nTele = Math.min(2, f);           // plafonné à 2 téléporteurs par labyrinthe
       return {
         cols: TOWER_WIDTH, rows, seed, hasExit,
         braid: 0.05 + f * 0.015,
@@ -292,7 +292,10 @@
         for (const d of this.scene.entities) {
           if (d.type !== "door") continue;
           const doorCx = (d.tx + 0.5) * T;
-          if (Math.abs(p.cx - doorCx) < T * 0.8 && p.onGround) {
+          const doorCy = (d.ty + 0.5) * T;
+          // Proximité horizontale + verticale (pas de « pieds au sol » requis :
+          // un tap déclenche un petit saut, il ne doit pas bloquer l'entrée).
+          if (Math.abs(p.cx - doorCx) < T * 0.8 && Math.abs(p.cy - doorCy) < T * 1.4) {
             this._enterDoor(d);
             return;
           }
