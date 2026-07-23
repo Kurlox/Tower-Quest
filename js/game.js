@@ -123,8 +123,8 @@
     _loadTutorial() {
       const seed = TQ.makeSeed(this.runSeed, 999, 1);
       const maze = TQ.generateMaze({
-        cols: 6, rows: 4, seed, hasExit: true,
-        braid: 0.05, spikes: 1,
+        cols: 7, rows: 5, seed, hasExit: true,
+        braid: 0.04, spikes: 1,
         teleporters: ["closer", "entrance"] // 2 max (rapproche + renvoie à l'entrée)
       });
       this.scene = maze;
@@ -190,12 +190,12 @@
       if (def.kind === "final") {
         // Labyrinthe géant ultra dur (2 téléporteurs max, comme partout).
         return {
-          cols: TOWER_WIDTH, rows: 26, seed, hasExit: true, braid: 0.14,
-          spikes: 16,
+          cols: TOWER_WIDTH, rows: 15, seed, hasExit: true, braid: 0.14,
+          spikes: 14,
           teleporters: this._teleMix(rng, 2, true)
         };
       }
-      const rows = 5 + f * 2;                 // hauteur croissante → tour qui grandit
+      const rows = 5 + f;                     // hauteur croissante → tour qui grandit
       const spikes = 2 + f * 2;
       const nTele = Math.min(2, f);           // plafonné à 2 téléporteurs par labyrinthe
       return {
@@ -356,15 +356,17 @@
 
     _teleport(e, maze) {
       const p = this.player;
-      const curCell = { x: TQ.clamp(Math.floor((e.tx - 1) / 2), 0, maze.cellCols - 1),
-                        y: TQ.clamp(Math.floor((e.ty - 1) / 2), 0, maze.cellRows - 1) };
+      const curCell = maze.cellAtTile(e.tx, e.ty);
       let target, msg;
-      if (e.variant === "closer") {
+      if (e.variant === "entrance") {
+        // Retour direct sur la case d'entrée (où l'on tient).
+        p.spawnAtTile(maze.entranceTile.tx, maze.entranceTile.ty, false);
+        this.tpCooldown = 40; this.flash = 10;
+        this.toast("✦ Téléporteur : retour à l'entrée !", 1800);
+        return;
+      } else if (e.variant === "closer") {
         target = maze.closerCell(curCell);
         msg = "✦ Téléporteur : plus près de la sortie !";
-      } else if (e.variant === "entrance") {
-        target = { x: maze.entranceCell.x, y: maze.entranceCell.y };
-        msg = "✦ Téléporteur : retour à l'entrée !";
       } else { // far
         target = maze.randomOpenCell();
         msg = "✦ Téléporteur : projeté au hasard !";

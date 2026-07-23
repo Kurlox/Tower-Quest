@@ -13,7 +13,7 @@
   const MAX_FALL = 12;
   const MOVE_SPEED = 3.1;
   const CLIMB_SPEED = 2.6;
-  const JUMP_VEL = -9.2;
+  const JUMP_VEL = -12.6; // apogée ≈ 3,6 tuiles → franchit un cran de 3 tuiles (couloirs 2-de-haut) avec marge
 
   class Player {
     constructor() {
