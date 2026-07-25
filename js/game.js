@@ -57,14 +57,24 @@
       this.tpCooldown = 0;
       this.flash = 0;
       this.revealTimer = 0; // brouillard levé par la lanterne (en frames)
+      this.timeMs = 0;      // chrono de la partie
+      this._airFrames = 0;
+      this._wasGround = false;
+      this.bestMs = parseInt(localStorage.getItem("tq_best") || "0", 10) || 0;
       this._ui = {
         overlay: document.getElementById("overlay"),
         card: document.getElementById("overlay-card"),
         toast: document.getElementById("toast"),
         floor: document.getElementById("floor-label"),
-        deaths: document.getElementById("deaths-label")
+        deaths: document.getElementById("deaths-label"),
+        time: document.getElementById("time-label")
       };
       this._toastTimer = null;
+    }
+
+    static fmtTime(ms) {
+      const s = Math.floor(ms / 1000);
+      return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
     }
 
     /* ============================ UI helpers ============================ */
@@ -84,11 +94,15 @@
       const def = FLOORS[this.floorIndex];
       this._ui.floor.textContent = def ? def.name : "—";
       this._ui.deaths.textContent = "☠ " + this.deaths;
+      if (this._ui.time) this._ui.time.textContent = Game.fmtTime(this.timeMs);
     }
 
     /* ============================ Démarrage ============================ */
     startMenu() {
       this.mode = "menu";
+      TQ.Particles.clear();
+      TQ.Audio.music("menu");
+      const best = this.bestMs ? `<p class="keys">🏆 Meilleur temps : <b>${Game.fmtTime(this.bestMs)}</b></p>` : "";
       this.showOverlay(`
         <h1>TOWER QUEST</h1>
         <h2>Curiosity</h2>
@@ -98,12 +112,15 @@
         <div class="keys">
           <b>PC :</b> Flèches / ZQSD pour bouger · <b>Espace</b> saut ·
           <b>Entrée/E</b> entrer dans une porte · <b>Échap</b> ressortir<br>
-          <b>Mobile :</b> glisse le doigt pour bouger/grimper · tape pour sauter
-          · 🏮 trouve la lanterne pour révéler le labyrinthe
+          <b>Mobile :</b> glisse le doigt pour bouger/grimper · <b>2 doigts</b> pour
+          sauter en bougeant · 🏮 la lanterne révèle le labyrinthe ~5 s
         </div>
+        ${best}
         <button class="btn" id="btn-play">JOUER</button>
       `);
       document.getElementById("btn-play").onclick = () => {
+        TQ.Audio.resume(); TQ.Audio.sfx("click");
+        this.deaths = 0; this.timeMs = 0;
         this.hideOverlay();
         this.goToFloor(0);
       };
@@ -131,6 +148,7 @@
       this.scene = maze;
       this.mode = "maze";
       this.context = { type: "tutorial" };
+      TQ.Audio.music("game");
       this._enterMaze(maze);
       this.toast("Bienvenue ! Atteins le portail brillant ✦", 3200);
       setTimeout(() => {
@@ -145,6 +163,9 @@
       this.scene = hub;
       this.mode = "hub";
       this.context = { type: "hub" };
+      // Même ambiance que les labyrinthes de l'étage → pas de coupure musicale
+      // en entrant/sortant des portes ; le final a sa propre musique intense.
+      TQ.Audio.music(def.kind === "final" ? "final" : "game");
 
       // Choix (seedé) des portes qui mènent réellement à une sortie.
       const rng = new TQ.RNG(TQ.makeSeed(this.runSeed, this.floorIndex, 7));
@@ -197,8 +218,8 @@
       if (def.kind === "final") {
         // Labyrinthe géant ultra dur (2 téléporteurs max, comme partout).
         return {
-          cols: TOWER_WIDTH, rows: 15, seed, hasExit: true, braid: 0.14,
-          spikes: 14,
+          cols: TOWER_WIDTH, rows: 18, seed, hasExit: true, braid: 0.16,
+          spikes: 20,
           teleporters: this._teleMix(rng, 2, true)
         };
       }
@@ -224,14 +245,17 @@
 
     /* ============================ Entrer / sortir ============================ */
     _enterDoor(door) {
+      const isFinal = FLOORS[this.floorIndex].kind === "final";
       const hasExit = this.exitDoors.has(door.index);
       const params = this._mazeParamsForDoor(door.index, hasExit);
       const maze = TQ.generateMaze(params);
       this.scene = maze;
       this.mode = "maze";
-      this.context = { type: FLOORS[this.floorIndex].kind === "final" ? "final" : "door", door };
+      this.context = { type: isFinal ? "final" : "door", door };
+      TQ.Audio.sfx("door");
+      TQ.Audio.music(isFinal ? "final" : "game");
       this._enterMaze(maze);
-      this.toast(hasExit || FLOORS[this.floorIndex].kind === "final"
+      this.toast(hasExit || isFinal
         ? "Trouve le portail vers le haut ✦   (▼ à l'entrée pour ressortir)"
         : "Explore… (▼ à l'entrée pour ressortir)", 3000);
     }
@@ -247,6 +271,8 @@
       this.scene = this.hubScene;
       this.mode = "hub";
       this.context = { type: "hub" };
+      TQ.Audio.sfx("door");
+      TQ.Audio.music(FLOORS[this.floorIndex].kind === "final" ? "final" : "game");
       // Replace le joueur devant la porte qu'il vient de quitter.
       const spawnX = door ? door.tx : this.hubScene.entranceTile.tx;
       this.player.spawnAtTile(spawnX, this.hubScene.entranceTile.ty, true);
@@ -261,16 +287,30 @@
 
     _victory() {
       this.mode = "end";
+      TQ.Audio.music("victory");
+      TQ.Audio.sfx("victory");
+      const t = this.timeMs;
+      let record = "";
+      if (!this.bestMs || t < this.bestMs) {
+        this.bestMs = t;
+        localStorage.setItem("tq_best", String(Math.floor(t)));
+        record = `<p class="keys" style="color:var(--accent2)">🏆 Nouveau record !</p>`;
+      } else {
+        record = `<p class="keys">🏆 Meilleur : ${Game.fmtTime(this.bestMs)}</p>`;
+      }
       this.showOverlay(`
         <h1>VICTOIRE !</h1>
         <h2>La tour est vaincue</h2>
         <p>Tu as traversé le labyrinthe géant et percé la Curiosity.</p>
-        <p>Morts : <b>${this.deaths}</b></p>
+        <p>⏱ Temps : <b>${Game.fmtTime(t)}</b> · ☠ Morts : <b>${this.deaths}</b></p>
+        ${record}
         <button class="btn" id="btn-again">Rejouer</button>
       `);
       document.getElementById("btn-again").onclick = () => {
+        TQ.Audio.sfx("click");
         this.runSeed = (Math.random() * 0xffffffff) >>> 0;
-        this.deaths = 0;
+        this.deaths = 0; this.timeMs = 0;
+        TQ.Particles.clear();
         this.hideOverlay();
         this.goToFloor(0);
       };
@@ -279,22 +319,39 @@
     /* ============================ Boucle ============================ */
     update() {
       if (this.paused || this.mode === "menu" || this.mode === "end") return;
+      this.timeMs += 1000 / 60;
       if (this.tpCooldown > 0) this.tpCooldown--;
       if (this.flash > 0) this.flash--;
       if (this.revealTimer > 0) {
         this.revealTimer--;
         if (this.revealTimer === 0) this.toast("🏮 Lanterne éteinte…", 1400);
       }
+      TQ.Particles.update();
 
       const input = TQ.Input;
-
-      // Pause (menu) via Échap dans un hub / touche menu.
-      if (this.mode === "hub" && input.pressed("back")) { /* rien : pas de retour */ }
-
       this.player.update(this.scene, input);
+      this._updatePlayerFx();
 
       if (this.mode === "hub") this._updateHub(input);
       else if (this.mode === "maze") this._updateMaze(input);
+
+      if ((this.timeMs | 0) % 250 < 17) this.updateHUD();
+    }
+
+    // Sons + particules liés aux mouvements du joueur.
+    _updatePlayerFx() {
+      const p = this.player;
+      // Saut détecté par le pic de vitesse verticale (sol ou échelle).
+      if (p.vy < -9 && (this._wasVy || 0) > -5) {
+        TQ.Audio.sfx("jump"); TQ.Particles.jumpDust(p.cx, p.y + p.h);
+      }
+      if (!this._wasGround && p.onGround && this._airFrames > 4) {
+        TQ.Audio.sfx("land"); TQ.Particles.landDust(p.cx, p.y + p.h);
+      }
+      this._airFrames = p.onGround ? 0 : this._airFrames + 1;
+      if (p.onLadder && Math.abs(p.vy) > 0.5) TQ.Audio.sfx("climb");
+      this._wasGround = p.onGround;
+      this._wasVy = p.vy;
     }
 
     _updateHub(input) {
@@ -350,11 +407,14 @@
             e.taken = true;              // masquée par le renderer une fois prise
             this.revealTimer = 5 * 60;   // ~5 secondes de révélation, puis fondu
             this.flash = 14;
+            TQ.Audio.sfx("lantern");
+            TQ.Particles.sparkle((e.tx + 0.5) * T, (e.ty + 0.5) * T, "#ffe08a", 20);
             this.toast("🏮 Lanterne ! Labyrinthe révélé ~5 s.", 2400);
           }
         } else if (e.type === "deadend") {
-          if (p.overlapsTile(e.tx, e.ty, 4)) {
+          if (p.overlapsTile(e.tx, e.ty, 4) && !e.hit) {
             this.toast("✗ Sans issue ! Retourne à l'entrée (▼).", 2600);
+            TQ.Audio.sfx("deadend");
             e.hit = true;
           }
         }
@@ -365,6 +425,9 @@
       this.deaths++;
       this.updateHUD();
       this.flash = 12;
+      TQ.Audio.sfx("death");
+      TQ.Particles.deathBurst(this.player.cx, this.player.cy);
+      this.renderer.addShake(9);
       this.player.respawn();
       this.toast("☠ Piège ! Retour au départ.", 1600);
     }
@@ -372,10 +435,14 @@
     _teleport(e, maze) {
       const p = this.player;
       const curCell = maze.cellAtTile(e.tx, e.ty);
+      const col = { closer: "#37e0c8", far: "#ffb347", entrance: "#ff5470" }[e.variant] || "#9b7cff";
+      TQ.Audio.sfx("teleport");
+      TQ.Particles.sparkle((e.tx + 0.5) * T, (e.ty + 0.5) * T, col, 18);
       let target, msg;
       if (e.variant === "entrance") {
         // Retour direct sur la case d'entrée (où l'on tient).
         p.spawnAtTile(maze.entranceTile.tx, maze.entranceTile.ty, false);
+        TQ.Particles.sparkle(p.cx, p.cy, col, 14);
         this.tpCooldown = 40; this.flash = 10;
         this.toast("✦ Téléporteur : retour à l'entrée !", 1800);
         return;
@@ -388,12 +455,15 @@
       }
       const c = maze.cellCenterTile(target.x, target.y);
       p.spawnAtTile(c.tx, c.ty, false);
+      TQ.Particles.sparkle(p.cx, p.cy, col, 14);
       this.tpCooldown = 40;
       this.flash = 10;
       this.toast(msg, 1800);
     }
 
     _reachExit() {
+      TQ.Audio.sfx("floorUp");
+      TQ.Particles.exitBurst(this.player.cx, this.player.cy);
       if (this.context.type === "tutorial") {
         this.toast("Bravo ! Tu maîtrises les bases. En avant !", 2200);
         this.goToFloor(1);

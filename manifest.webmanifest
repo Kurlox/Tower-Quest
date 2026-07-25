@@ -1,0 +1,14 @@
+{
+  "name": "Tower Quest : Curiosity",
+  "short_name": "Tower Quest",
+  "description": "Plateformer 2D pixel art à labyrinthes procéduraux, sur PC et mobile.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#0d0b1a",
+  "theme_color": "#0d0b1a",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

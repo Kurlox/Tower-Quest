@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="28" fill="#0d0b1a"/>
+  <rect x="24" y="150" width="144" height="20" fill="#2f2352"/>
+  <!-- tour -->
+  <rect x="60" y="40" width="72" height="120" fill="#241a3d"/>
+  <rect x="60" y="40" width="72" height="8" fill="#4a3a86"/>
+  <rect x="72" y="60" width="16" height="20" fill="#3a2a6e"/>
+  <rect x="104" y="60" width="16" height="20" fill="#3a2a6e"/>
+  <rect x="72" y="96" width="16" height="20" fill="#3a2a6e"/>
+  <rect x="104" y="96" width="16" height="20" fill="#3a2a6e"/>
+  <!-- porte -->
+  <path d="M84 160 v-28 a12 12 0 0 1 24 0 v28 z" fill="#7c5cff"/>
+  <!-- personnage -->
+  <rect x="118" y="118" width="20" height="26" fill="#37e0c8"/>
+  <rect x="121" y="112" width="14" height="10" fill="#ffd9a8"/>
+  <!-- portail -->
+  <circle cx="96" cy="30" r="14" fill="#37e0c8" opacity="0.9"/>
+  <circle cx="96" cy="30" r="6" fill="#eaffff"/>
+</svg>
