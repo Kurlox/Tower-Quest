@@ -18,25 +18,42 @@
     if (isTouch) document.body.classList.add("touch");
     TQ.Input.bindDrag(canvas);
 
+    // Déblocage de l'audio au tout premier geste (exigence navigateurs).
+    const unlock = () => { TQ.Audio.resume(); };
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+
+    // Bouton son (muet / actif), état mémorisé.
+    const soundBtn = document.getElementById("btn-sound");
+    soundBtn.textContent = TQ.Audio.isMuted() ? "🔇" : "🔊";
+    soundBtn.addEventListener("click", () => {
+      const m = TQ.Audio.toggleMuted();
+      soundBtn.textContent = m ? "🔇" : "🔊";
+      if (!m) TQ.Audio.sfx("click");
+    });
+
     // Bouton menu (pause simple / retour menu).
     document.getElementById("btn-menu").addEventListener("click", () => {
       if (game.mode === "menu" || game.mode === "end") return;
+      TQ.Audio.sfx("click");
       game.paused = !game.paused;
       if (game.paused) {
         game.showOverlay(`
           <h1>PAUSE</h1>
-          <p>Étage : <b>${game.floorIndex}</b> · Morts : <b>${game.deaths}</b></p>
+          <p>${FLOORNAME(game)} · ⏱ ${TQ.Game.fmtTime(game.timeMs)} · ☠ ${game.deaths}</p>
           <div class="btn-row">
             <button class="btn" id="btn-resume">Reprendre</button>
             <button class="btn ghost" id="btn-quit">Menu</button>
           </div>
         `);
-        document.getElementById("btn-resume").onclick = () => { game.paused = false; game.hideOverlay(); };
-        document.getElementById("btn-quit").onclick = () => { game.paused = false; game.hideOverlay(); game.startMenu(); };
+        document.getElementById("btn-resume").onclick = () => { TQ.Audio.sfx("click"); game.paused = false; game.hideOverlay(); };
+        document.getElementById("btn-quit").onclick = () => { TQ.Audio.sfx("click"); game.paused = false; game.hideOverlay(); game.startMenu(); };
       } else {
         game.hideOverlay();
       }
     });
+
+    function FLOORNAME(g) { return "Étage " + g.floorIndex; }
 
     game.startMenu();
 

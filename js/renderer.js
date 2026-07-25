@@ -17,10 +17,13 @@
       this.cam = { x: 0, y: 0 };
       this.scale = 2;
       this.time = 0;
+      this.shakeAmt = 0;      // secousse d'écran (décroît)
       this.visionTiles = 3.4; // rayon de vision (en tuiles) sous le brouillard
       this.resize();
       window.addEventListener("resize", () => this.resize());
     }
+
+    addShake(a) { this.shakeAmt = Math.max(this.shakeAmt, a); }
 
     resize() {
       const w = window.innerWidth, h = window.innerHeight;
@@ -55,16 +58,25 @@
       const maze = scene.maze, player = scene.player;
       this.centerOn(player.cx, player.cy, maze);
 
+      // Secousse d'écran.
+      let shx = 0, shy = 0;
+      if (this.shakeAmt > 0.2) {
+        shx = (Math.random() - 0.5) * this.shakeAmt;
+        shy = (Math.random() - 0.5) * this.shakeAmt;
+        this.shakeAmt *= 0.85;
+      } else this.shakeAmt = 0;
+
       ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
       this._background(scene);
 
       ctx.save();
       ctx.scale(this.scale, this.scale);
-      ctx.translate(-this.cam.x, -this.cam.y);
+      ctx.translate(-this.cam.x + shx, -this.cam.y + shy);
 
       this._drawTiles(maze);
       this._drawEntities(scene);
       this._drawPlayer(player);
+      if (global.TQ.Particles) global.TQ.Particles.draw(ctx);
 
       ctx.restore();
 
