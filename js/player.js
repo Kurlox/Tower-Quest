@@ -27,6 +27,9 @@
       this.animT = 0;
       this.walking = false;
       this.spawnX = 0; this.spawnY = 0;
+      this.coyote = 0;      // délai de grâce après avoir quitté le sol
+      this.jumpBuffer = 0;  // saut mémorisé juste avant de toucher le sol
+      this._prevJump = false;
     }
 
     // Place le joueur centré sur une tuile (tx,ty), pieds posés dedans.
@@ -63,6 +66,14 @@
       // --- Mouvement horizontal (direct, pour un contrôle net en labyrinthe) ---
       this.vx = dir * MOVE_SPEED;
 
+      // Coyote time + tampon de saut : le saut est plus indulgent (utile au
+      // tactile). On mémorise un appui récent et on autorise un saut un court
+      // instant après avoir quitté le sol.
+      const jumpEdge = st.jump && !this._prevJump;
+      this._prevJump = st.jump;
+      if (jumpEdge) this.jumpBuffer = 7; else if (this.jumpBuffer > 0) this.jumpBuffer--;
+      if (this.onGround) this.coyote = 6; else if (this.coyote > 0) this.coyote--;
+
       // Échelle style « Lode Runner » : dès qu'on est sur une tuile échelle,
       // la gravité est suspendue (on flotte), ce qui rend TOUT puits et
       // carrefour traversable sans jamais rester bloqué. Le saut décroche.
@@ -71,14 +82,16 @@
       if (this.onLadder) {
         const vdir = (st.down ? 1 : 0) - (st.up ? 1 : 0);
         this.vy = vdir * CLIMB_SPEED;
-        if (st.jump) { this.onLadder = false; this.vy = JUMP_VEL; }
+        if (st.jump) { this.onLadder = false; this.vy = JUMP_VEL; this.jumpBuffer = 0; }
       } else {
         // --- Mode plateforme : gravité ---
         this.vy += GRAVITY;
         if (this.vy > MAX_FALL) this.vy = MAX_FALL;
-        if (st.jump && this.onGround) {
+        if (this.jumpBuffer > 0 && (this.onGround || this.coyote > 0)) {
           this.vy = JUMP_VEL;
           this.onGround = false;
+          this.coyote = 0;
+          this.jumpBuffer = 0;
         }
       }
 

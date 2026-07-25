@@ -69,13 +69,15 @@
       ctx.restore();
 
       // Brouillard « à la Pokémon » : tout est noir sauf un halo autour du
-      // joueur, sauf si le labyrinthe a été révélé (lanterne ramassée).
-      if (scene.fog && !scene.revealed) this._fog(player);
+      // joueur. La lanterne le lève temporairement (scene.reveal 1→0 = fondu).
+      if (scene.fog && (scene.reveal || 0) < 1) this._fog(player, scene.reveal || 0);
     }
 
-    _fog(player) {
+    _fog(player, reveal) {
       const ctx = this.ctx;
       ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+      ctx.save();
+      ctx.globalAlpha = 1 - reveal; // fondu quand la lanterne est active
       const sx = (player.cx - this.cam.x) * this.scale;
       const sy = (player.cy - this.cam.y) * this.scale;
       const r = this.visionTiles * T * this.scale;
@@ -87,6 +89,7 @@
       g.addColorStop(1, "rgba(4,3,10,0.985)");
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, this.vw, this.vh);
+      ctx.restore();
     }
 
     _background(scene) {
