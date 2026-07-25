@@ -139,7 +139,7 @@
     }
 
     _loadHub(def) {
-      const hub = this._buildHub(def.doors);
+      const hub = this._buildHub(def.doors, def.name);
       this.hubScene = hub;
       this.scene = hub;
       this.mode = "hub";
@@ -159,24 +159,30 @@
       this.toast(msg, 3400);
     }
 
-    _buildHub(doorCount) {
-      const Ht = 8;
-      const Wt = doorCount * 3 + 4;
+    _buildHub(doorCount, title) {
+      const Ht = 9;                       // grande salle (couloir haut)
+      const spacing = 4;                  // espacement des portes
+      const startX = 3;
+      const Wt = startX + (doorCount - 1) * spacing + startX + 1;
       const tiles = Array.from({ length: Ht }, () => new Array(Wt).fill(TILE.WALL));
       // Carve intérieur (air) au-dessus du sol.
       for (let y = 1; y <= Ht - 3; y++)
         for (let x = 1; x <= Wt - 2; x++) tiles[y][x] = TILE.OPEN;
       const scene = Object.assign(Object.create(tileMethods), {
-        tiles, w: Wt, h: Ht, entities: [], kind: "hub"
+        tiles, w: Wt, h: Ht, entities: [], kind: "hub", title
       });
       const doorTy = Ht - 3;
       for (let i = 0; i < doorCount; i++) {
-        const tx = 2 + i * 3;
+        const tx = startX + i * spacing;
         scene.entities.push({
           type: "door", tx, ty: doorTy, label: doorCount === 1 ? "★" : (i + 1),
-          index: i, explored: false, wasExit: false
+          index: i, explored: false, wasExit: false, near: false
         });
+        // Torche au-dessus de chaque porte (ambiance + éclairage).
+        scene.entities.push({ type: "torch", tx, ty: 1 });
       }
+      // Bannière d'étage au centre, en haut.
+      scene.entities.push({ type: "banner", tx: Math.floor(Wt / 2), ty: 0, text: title || "" });
       scene.entranceTile = { tx: 1, ty: doorTy };
       return scene;
     }
@@ -287,18 +293,21 @@
 
     _updateHub(input) {
       const p = this.player;
-      // Entrer dans une porte : proche + au sol + action/haut.
-      if ((input.pressed("action") || input.pressed("up") || input.pressed("jump"))) {
-        for (const d of this.scene.entities) {
-          if (d.type !== "door") continue;
-          const doorCx = (d.tx + 0.5) * T;
-          const doorCy = (d.ty + 0.5) * T;
-          // Proximité horizontale + verticale (pas de « pieds au sol » requis :
-          // un tap déclenche un petit saut, il ne doit pas bloquer l'entrée).
-          if (Math.abs(p.cx - doorCx) < T * 0.8 && Math.abs(p.cy - doorCy) < T * 1.4) {
-            this._enterDoor(d);
-            return;
-          }
+      // Repère la porte la plus proche (pour l'indice « ▲ Entrer »).
+      let nearDoor = null, nearDist = Infinity;
+      for (const d of this.scene.entities) {
+        if (d.type !== "door") continue;
+        d.near = false;
+        const dist = Math.abs(p.cx - (d.tx + 0.5) * T);
+        if (dist < T * 0.9 && dist < nearDist) { nearDist = dist; nearDoor = d; }
+      }
+      if (nearDoor) nearDoor.near = true;
+
+      // Entrer dans la porte proche : action / haut / tap.
+      if (nearDoor && (input.pressed("action") || input.pressed("up") || input.pressed("jump"))) {
+        if (Math.abs(p.cy - (nearDoor.ty + 0.5) * T) < T * 1.6) {
+          this._enterDoor(nearDoor);
+          return;
         }
       }
     }
@@ -396,7 +405,8 @@
       const fog = this.mode === "maze";
       const scene = {
         maze: this.scene, player: this.player, floorIndex: this.floorIndex,
-        fog, revealed: this.scene ? this.scene.revealed : false
+        fog, revealed: this.scene ? this.scene.revealed : false,
+        isHub: this.mode === "hub"
       };
       if (this.mode === "menu" || this.mode === "end") {
         // Fond animé minimal derrière l'overlay (sans brouillard).

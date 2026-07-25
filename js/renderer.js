@@ -92,6 +92,7 @@
     _background(scene) {
       const { ctx } = this;
       const floor = scene.floorIndex || 0;
+      if (scene.isHub) { this._hallBackground(floor); return; }
       // Teinte du ciel qui évolue avec l'étage (plus on monte, plus c'est violet/rouge).
       const hue1 = 250 - floor * 8;
       const g = ctx.createLinearGradient(0, 0, 0, this.vh);
@@ -108,6 +109,29 @@
         const sy = ((i * 61.7 - camY) % this.vh + this.vh) % this.vh;
         const s = (i % 3) + 1;
         ctx.fillRect(sx, sy, s, s);
+      }
+    }
+
+    // Fond de « hall » : pierre sombre + grands piliers en arrière-plan.
+    _hallBackground(floor) {
+      const { ctx } = this;
+      const hue = 260 - floor * 6;
+      const g = ctx.createLinearGradient(0, 0, 0, this.vh);
+      g.addColorStop(0, `hsl(${hue}, 30%, 8%)`);
+      g.addColorStop(0.6, `hsl(${hue}, 28%, 12%)`);
+      g.addColorStop(1, `hsl(${hue}, 25%, 6%)`);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, this.vw, this.vh);
+      // Piliers d'arrière-plan (parallax léger).
+      const camX = this.cam.x * 0.35;
+      const pillarW = 60, gap = 150;
+      ctx.fillStyle = `hsla(${hue}, 30%, 16%, 0.55)`;
+      for (let i = -1; i < this.vw / gap + 2; i++) {
+        const px = i * gap - (camX % gap);
+        ctx.fillRect(px, 0, pillarW, this.vh);
+        ctx.fillStyle = `hsla(${hue}, 30%, 20%, 0.4)`;
+        ctx.fillRect(px, 0, 6, this.vh);
+        ctx.fillStyle = `hsla(${hue}, 30%, 16%, 0.55)`;
       }
     }
 
@@ -179,9 +203,63 @@
           case "exit": this._exit(px, py, tpx); break;
           case "deadend": this._deadend(px, py); break;
           case "flash": this._flash(px, py, tpx); break;
+          case "torch": this._torch(px, py, tpx); break;
+          case "banner": this._banner(px, py, e); break;
           case "door": this._door(px, py, e, tpx); break;
         }
       }
+    }
+
+    _torch(px, py, tpx) {
+      const { ctx } = this;
+      const cx = px + T / 2, cy = py + T * 0.5;
+      const flick = 0.75 + 0.25 * Math.sin(tpx * 0.4 + px);
+      // Halo chaud
+      const g = ctx.createRadialGradient(cx, cy, 1, cx, cy, T * 2.2 * flick);
+      g.addColorStop(0, "rgba(255,200,110,0.5)");
+      g.addColorStop(0.5, "rgba(255,150,60,0.14)");
+      g.addColorStop(1, "rgba(255,150,60,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(px - T * 2, py - T * 2, T * 5, T * 5);
+      // Support + flamme
+      ctx.fillStyle = "#3a2f22";
+      ctx.fillRect(cx - 2, cy, 4, T * 0.5);
+      ctx.fillStyle = "#ffdf7a";
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - T * 0.5 * flick);
+      ctx.quadraticCurveTo(cx + 5, cy - 3, cx + 4, cy + 2);
+      ctx.quadraticCurveTo(cx, cy + 4, cx - 4, cy + 2);
+      ctx.quadraticCurveTo(cx - 5, cy - 3, cx, cy - T * 0.5 * flick);
+      ctx.fill();
+      ctx.fillStyle = "#ff8a3a";
+      ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fill();
+    }
+
+    _banner(px, py, e) {
+      const { ctx } = this;
+      const cx = px + T / 2, y = py + T * 0.3;
+      const text = (e.text || "").toUpperCase();
+      ctx.font = `bold ${T * 0.85}px "Trebuchet MS", sans-serif`;
+      const w = Math.max(ctx.measureText(text).width + T, T * 3);
+      // Étoffe suspendue
+      ctx.fillStyle = "#5a3fa0";
+      ctx.fillRect(cx - w / 2, y, w, T * 1.3);
+      ctx.fillStyle = "#7c5cff";
+      ctx.fillRect(cx - w / 2, y, w, 4);
+      // Pointes du bas
+      ctx.fillStyle = "#5a3fa0";
+      const n = Math.floor(w / (T * 0.5));
+      for (let i = 0; i < n; i++) {
+        const bx = cx - w / 2 + i * (w / n);
+        ctx.beginPath();
+        ctx.moveTo(bx, y + T * 1.3);
+        ctx.lineTo(bx + w / n / 2, y + T * 1.6);
+        ctx.lineTo(bx + w / n, y + T * 1.3);
+        ctx.fill();
+      }
+      ctx.fillStyle = "#f4e9ff";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(text, cx, y + T * 0.68);
     }
 
     _spike(px, py) {
@@ -282,25 +360,51 @@
 
     _door(px, py, e, tpx) {
       const { ctx } = this;
-      // Arche de porte posée sur le sol.
-      const doorW = T * 1.2, doorH = T * 1.6;
-      const dx = px + T / 2 - doorW / 2;
+      const cx = px + T / 2;
+      // Grande arche posée sur le sol.
+      const doorW = T * 1.5, doorH = T * 2.3;
+      const dx = cx - doorW / 2;
       const dy = py + T - doorH;
-      ctx.fillStyle = e.explored ? "#3a3358" : "#5a3fa0";
+      const pulse = 0.5 + 0.5 * Math.sin(tpx * 0.08 + e.index);
+
+      // Halo (portes non explorées « appellent »).
+      if (!e.explored) {
+        const g = ctx.createRadialGradient(cx, dy + doorH * 0.5, 4, cx, dy + doorH * 0.5, doorW);
+        g.addColorStop(0, `rgba(124,92,255,${0.25 + 0.15 * pulse})`);
+        g.addColorStop(1, "rgba(124,92,255,0)");
+        ctx.fillStyle = g;
+        ctx.fillRect(dx - T, dy - T, doorW + T * 2, doorH + T * 2);
+      }
+      // Cadre en pierre
+      ctx.fillStyle = e.explored ? "#2c2740" : "#4a3a86";
+      this._roundTop(dx - 3, dy - 3, doorW + 6, doorH + 3, doorW / 2 + 3);
+      ctx.fill();
+      // Battant
+      ctx.fillStyle = e.explored ? "#211d33" : "#5a3fa0";
       this._roundTop(dx, dy, doorW, doorH, doorW / 2);
       ctx.fill();
-      ctx.fillStyle = e.explored ? "#241f38" : "#7c5cff";
-      this._roundTop(dx + 3, dy + 3, doorW - 6, doorH - 3, (doorW - 6) / 2);
+      ctx.fillStyle = e.explored ? "#181425" : (e.near ? "#8f72ff" : "#3a2a6e");
+      this._roundTop(dx + 4, dy + 4, doorW - 8, doorH - 4, (doorW - 8) / 2);
       ctx.fill();
       // Numéro
-      ctx.fillStyle = "#eaffff";
-      ctx.font = `bold ${T * 0.7}px "Trebuchet MS", sans-serif`;
+      ctx.fillStyle = e.explored ? "#6a6488" : "#eaffff";
+      ctx.font = `bold ${T * 0.9}px "Trebuchet MS", sans-serif`;
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(String(e.label), px + T / 2, dy + doorH * 0.55);
+      ctx.fillText(String(e.label), cx, dy + doorH * 0.5);
+
       if (e.explored) {
+        // Verdict de la porte déjà tentée.
         ctx.fillStyle = e.wasExit ? "#37e0c8" : "#ff5470";
-        ctx.font = `bold ${T * 0.5}px sans-serif`;
-        ctx.fillText(e.wasExit ? "✓" : "✗", px + T / 2, dy - 6);
+        ctx.font = `bold ${T * 0.7}px sans-serif`;
+        ctx.fillText(e.wasExit ? "✓" : "✗", cx, dy - T * 0.5);
+      } else if (e.near) {
+        // Indice d'entrée qui flotte au-dessus.
+        const by = dy - T * 0.7 + Math.sin(tpx * 0.2) * 3;
+        ctx.fillStyle = "#37e0c8";
+        ctx.font = `bold ${T * 0.6}px sans-serif`;
+        ctx.fillText("▲", cx, by);
+        ctx.font = `bold ${T * 0.42}px "Trebuchet MS", sans-serif`;
+        ctx.fillText("ENTRER", cx, by - T * 0.6);
       }
     }
 
