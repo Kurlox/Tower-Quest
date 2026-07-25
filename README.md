@@ -23,16 +23,16 @@ Aucune dépendance : ouvre le jeu dans un navigateur.
 ### Contrôles
 
 Sur mobile, **aucun bouton à l'écran** : on **glisse le doigt** n'importe où
-pour se déplacer (droite = à droite, haut/bas = grimper), un **tap** saute, et
-un **2ᵉ doigt** permet de sauter tout en dirigeant (sauts en diagonale).
+pour se déplacer (droite = à droite, haut/bas = grimper) et un **coup de doigt
+rapide vers le haut** saute — jouable d'une seule main, même en se déplaçant.
 
-| Action                 | PC                          | Mobile                        |
-|------------------------|-----------------------------|-------------------------------|
-| Se déplacer            | Flèches / ZQSD              | glisser ◀ ▶                   |
-| Grimper aux échelles   | Haut / Bas                  | glisser ▲ ▼                   |
-| Sauter                 | Espace                      | tap · ou 2ᵉ doigt en bougeant |
-| Entrer dans une porte  | Entrée / E (ou Haut)        | glisser vers le haut / tap    |
-| Ressortir d'un couloir | Échap (ou Bas à l'entrée)   | glisser vers le bas à l'entrée |
+| Action                 | PC                          | Mobile                          |
+|------------------------|-----------------------------|---------------------------------|
+| Se déplacer            | Flèches / ZQSD              | glisser ◀ ▶                     |
+| Grimper aux échelles   | Haut / Bas                  | glisser lentement ▲ ▼           |
+| Sauter                 | Espace                      | coup de doigt vers le haut · tap |
+| Entrer dans une porte  | Entrée / E (ou Haut)        | glisser vers le haut / tap      |
+| Ressortir d'un couloir | Échap (ou Bas à l'entrée)   | glisser vers le bas à l'entrée  |
 
 Un **saut plus indulgent** (coyote time + tampon d'appui) rend le platforming
 confortable au tactile.

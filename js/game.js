@@ -112,8 +112,8 @@
         <div class="keys">
           <b>PC :</b> Flèches / ZQSD pour bouger · <b>Espace</b> saut ·
           <b>Entrée/E</b> entrer dans une porte · <b>Échap</b> ressortir<br>
-          <b>Mobile :</b> glisse le doigt pour bouger/grimper · <b>2 doigts</b> pour
-          sauter en bougeant · 🏮 la lanterne révèle le labyrinthe ~5 s
+          <b>Mobile :</b> glisse pour bouger/grimper · <b>coup de doigt vers le
+          haut</b> = saut · 🏮 la lanterne révèle le labyrinthe ~5 s
         </div>
         ${best}
         <button class="btn" id="btn-play">JOUER</button>
