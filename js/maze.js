@@ -336,36 +336,60 @@
       this.maxDist = max;
     }
 
+    // Toutes les cases empruntées par un itinéraire garanti entrée→sortie
+    // (waypoints + segments entre eux + rangée du dessus pour l'arc/la tête).
+    // On n'y placera NI piège NI téléporteur → la sortie reste toujours
+    // accessible proprement (pas de téléporteur sur l'échelle qui y mène, etc.).
+    _exitPathTiles() {
+      const path = this.solvePath();
+      const set = new Set();
+      if (!path) return set;
+      const add = (x, y) => set.add(x + "," + y);
+      for (let i = 0; i < path.length; i++) {
+        const a = path[i];
+        add(a.x, a.y); add(a.x, a.y - 1);
+        if (i < path.length - 1) {
+          const b = path[i + 1];
+          const x0 = Math.min(a.x, b.x), x1 = Math.max(a.x, b.x);
+          const y0 = Math.min(a.y, b.y), y1 = Math.max(a.y, b.y);
+          for (let y = y0 - 1; y <= y1; y++) for (let x = x0; x <= x1; x++) add(x, y);
+        }
+      }
+      return set;
+    }
+
     /* ---- 5. Pièges + téléporteurs + lanterne + marqueurs ---- */
     _placeEntities(opts) {
       const ents = this.entities;
       const dTo = (tile, tx, ty) => Math.abs(tile.tx - tx) + Math.abs(tile.ty - ty);
+      const path = this._exitPathTiles();
+      const onPath = (x, y) => path.has(x + "," + y);
       // Zone de départ TRÈS sûre : rien près de l'entrée.
       const SAFE_ENT = 4, SAFE_EXIT = 2;
       const safe = (tx, ty) =>
         dTo(this.entranceTile, tx, ty) > SAFE_ENT &&
         dTo(this.exitTile, tx, ty) > SAFE_EXIT;
 
-      // -- Pièges : sol de couloir AVEC de la hauteur au-dessus (donc évitables
-      //    en sautant), loin de l'entrée/sortie.
+      // -- Pièges : sol de couloir avec hauteur au-dessus (évitables), loin de
+      //    l'entrée/sortie, et JAMAIS sur l'itinéraire de la sortie.
       const spikeSpots = [];
       for (let y = 2; y < this.h - 1; y++)
         for (let x = 1; x < this.w - 1; x++)
           if (this.tiles[y][x] === TILE.OPEN &&
               this.tiles[y + 1][x] === TILE.WALL &&
-              this._openT(x, y - 1) &&           // hauteur pour sauter par-dessus
-              safe(x, y))
+              this._openT(x, y - 1) &&
+              safe(x, y) && !onPath(x, y))
             spikeSpots.push({ x, y });
       this.rng.shuffle(spikeSpots);
       const spikeCount = opts.spikes || 0;
       for (let i = 0; i < spikeCount && i < spikeSpots.length; i++)
         ents.push({ type: "spike", tx: spikeSpots[i].x, ty: spikeSpots[i].y });
 
-      // -- Téléporteurs.
+      // -- Téléporteurs : jamais sur l'itinéraire de la sortie.
       const openSpots = [];
       for (let y = 1; y < this.h - 1; y++)
         for (let x = 1; x < this.w - 1; x++)
-          if (this.tiles[y][x] !== TILE.WALL && safe(x, y))
+          if (this.tiles[y][x] !== TILE.WALL && safe(x, y) && !onPath(x, y))
             openSpots.push({ x, y });
       this.rng.shuffle(openSpots);
       const tps = opts.teleporters || [];

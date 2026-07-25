@@ -68,13 +68,17 @@
     setTimeout(() => { state.jump = false; }, 130);
   }
 
+  const FLICK_V = 0.9;    // vitesse (px/ms) d'un coup de doigt vers le haut = saut
+
   function bindDrag(surface) {
     let id = null, sx = 0, sy = 0, startT = 0, moved = false;
+    let lx = 0, ly = 0, lt = 0, lastJump = 0, suppressUp = 0;
 
     const applyDirs = (dx, dy) => {
+      const now = Date.now();
       set("left", dx < -DEAD);
       set("right", dx > DEAD);
-      set("up", dy < -DEAD);
+      set("up", dy < -DEAD && now > suppressUp); // pas de "monter" juste après un flick-saut
       set("down", dy > DEAD);
     };
     const clearDirs = () => {
@@ -88,8 +92,9 @@
           // 1er doigt = manche de déplacement.
           id = t.identifier; sx = t.clientX; sy = t.clientY;
           startT = Date.now(); moved = false;
+          lx = t.clientX; ly = t.clientY; lt = startT;
         } else {
-          // 2e doigt (pendant qu'on dirige) = SAUT → permet le saut en diagonale.
+          // 2e doigt (option) = saut.
           pulseJump();
         }
       }
@@ -99,6 +104,15 @@
     surface.addEventListener("touchmove", (e) => {
       for (const t of e.changedTouches) {
         if (t.identifier !== id) continue;
+        const now = Date.now();
+        const ddt = Math.max(8, now - lt);
+        const vy = (t.clientY - ly) / ddt;   // px/ms, négatif = vers le haut
+        const vx = (t.clientX - lx) / ddt;
+        lx = t.clientX; ly = t.clientY; lt = now;
+        // Coup de doigt rapide vers le haut = SAUT (jouable d'une seule main).
+        if (vy < -FLICK_V && Math.abs(vy) > Math.abs(vx) * 0.7 && now - lastJump > 260) {
+          pulseJump(); lastJump = now; suppressUp = now + 220;
+        }
         const dx = t.clientX - sx, dy = t.clientY - sy;
         if (Math.hypot(dx, dy) > TAP_DIST) moved = true;
         applyDirs(dx, dy);
