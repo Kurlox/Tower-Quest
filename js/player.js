@@ -9,11 +9,11 @@
 
   const TILE = global.TQ.TILEPX = 24; // taille d'une tuile en pixels-monde
 
-  const GRAVITY = 0.9;
-  const MAX_FALL = 12;
-  const MOVE_SPEED = 3.1;
+  const GRAVITY = 0.6;    // plus faible → saut plus flottant, plus de temps pour orienter
+  const MAX_FALL = 10;
+  const MOVE_SPEED = 3.2;
   const CLIMB_SPEED = 2.6;
-  const JUMP_VEL = -12.6; // apogée ≈ 3,6 tuiles → franchit un cran de 3 tuiles (couloirs 2-de-haut) avec marge
+  const JUMP_VEL = -10.3; // apogée ≈ 3,6 tuiles, mais montée plus lente (contrôle aérien)
 
   class Player {
     constructor() {

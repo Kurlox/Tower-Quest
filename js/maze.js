@@ -25,8 +25,9 @@
     { dx: -1, dy: 0, wall: "W", opp: "E" }
   ];
 
-  // Couloirs de 2 tuiles de haut (headroom partout) → atterrissages amples et
-  // FIABLES au saut. Un cran vertical = 3 tuiles ; le joueur saute ~3,6 tuiles.
+  // Couloirs de 2 tuiles de LARGE et 2 tuiles de HAUT (de l'espace pour
+  // manœuvrer/sauter en diagonale). Un cran vertical = 3 tuiles.
+  const CELL_W = 3;     // pas horizontal en tuiles (2 ouvertes + 1 mur)
   const CELL_H = 3;     // pas vertical en tuiles (2 ouvertes + 1 mur)
   const JUMP_TILES = 3; // hauteur de saut prise en compte par le modèle
 
@@ -129,24 +130,25 @@
       this.pathLen = farD;
     }
 
-    /* ---- 3. Conversion cellules -> tuiles (couloirs de 2 tuiles de haut) ---- */
+    /* ---- 3. Conversion cellules -> tuiles (cellules 2×2 : couloirs larges) ---- */
     _buildTiles() {
       const W = this.cellCols, H = this.cellRows;
-      const TW = 2 * W + 1, TH = CELL_H * H + 1;
+      const TW = CELL_W * W + 1, TH = CELL_H * H + 1;
       const t = Array.from({ length: TH }, () => new Array(TW).fill(TILE.WALL));
       for (let cy = 0; cy < H; cy++) {
         for (let cx = 0; cx < W; cx++) {
-          const tx = 2 * cx + 1;
+          const cL = CELL_W * cx + 1, cR = CELL_W * cx + 2;     // 2 colonnes ouvertes
           const head = CELL_H * cy + 1, feet = CELL_H * cy + 2; // 2 rangées ouvertes
-          t[head][tx] = TILE.OPEN;
-          t[feet][tx] = TILE.OPEN;
+          // Pièce 2×2 ouverte.
+          t[head][cL] = TILE.OPEN; t[feet][cL] = TILE.OPEN;
+          t[head][cR] = TILE.OPEN; t[feet][cR] = TILE.OPEN;
           const c = this.cells[cy][cx];
-          // Couloirs horizontaux : 2 tuiles de haut.
-          if (!c.E) { t[head][tx + 1] = TILE.OPEN; t[feet][tx + 1] = TILE.OPEN; }
-          if (!c.W) { t[head][tx - 1] = TILE.OPEN; t[feet][tx - 1] = TILE.OPEN; }
-          // Liens verticaux : trou dans le plancher/plafond partagé.
-          if (!c.N) t[CELL_H * cy][tx] = TILE.OPEN;         // vers cy-1
-          if (!c.S) t[CELL_H * (cy + 1)][tx] = TILE.OPEN;   // vers cy+1
+          // Liens horizontaux : ouverture pleine hauteur sur la colonne mur.
+          if (!c.E) { t[head][CELL_W * (cx + 1)] = TILE.OPEN; t[feet][CELL_W * (cx + 1)] = TILE.OPEN; }
+          if (!c.W) { t[head][CELL_W * cx] = TILE.OPEN; t[feet][CELL_W * cx] = TILE.OPEN; }
+          // Liens verticaux : ouverture pleine largeur sur la rangée mur.
+          if (!c.N) { t[CELL_H * cy][cL] = TILE.OPEN; t[CELL_H * cy][cR] = TILE.OPEN; }
+          if (!c.S) { t[CELL_H * (cy + 1)][cL] = TILE.OPEN; t[CELL_H * (cy + 1)][cR] = TILE.OPEN; }
         }
       }
       this.tiles = t; this.w = TW; this.h = TH;
@@ -154,9 +156,11 @@
       // le saut ne passe pas (voir _ensureSolvable).
     }
 
-    // Pose une échelle sur le lien vertical entre (cx,cy) et (cx,cy-1).
+    // Pose une échelle sur le lien vertical entre (cx,cy) et (cx,cy-1) —
+    // sur UNE seule colonne du puits (l'autre reste ouverte pour respirer,
+    // franchie au saut). Moins d'échelles, plus d'espace.
     _ladderLink(cx, cy) {
-      const tx = 2 * cx + 1;
+      const tx = CELL_W * cx + 1;
       const y0 = CELL_H * (cy - 1) + 1, y1 = CELL_H * cy + 2;
       for (let y = y0; y <= y1; y++)
         if (this.tiles[y][tx] === TILE.OPEN) this.tiles[y][tx] = TILE.LADDER;
@@ -254,10 +258,9 @@
       const has = (x, y) => reach.has(x + "," + y);
       for (let cy = 0; cy < this.cellRows; cy++)
         for (let cx = 0; cx < this.cellCols; cx++) {
-          const tx = 2 * cx + 1, head = CELL_H * cy + 1, feet = CELL_H * cy + 2;
-          if (has(tx, feet) || has(tx, head) ||
-              has(tx - 1, feet) || has(tx + 1, feet) ||
-              has(tx - 1, head) || has(tx + 1, head))
+          const cL = CELL_W * cx + 1, cR = CELL_W * cx + 2;
+          const head = CELL_H * cy + 1, feet = CELL_H * cy + 2;
+          if (has(cL, feet) || has(cR, feet) || has(cL, head) || has(cR, head))
             rc.add(cx + "," + cy);
         }
       return rc;
@@ -296,8 +299,9 @@
       if (t) this.exitTile = t;
     }
     _reachedStandTile(cell, reach) {
-      const tx = 2 * cell.x + 1, head = CELL_H * cell.y + 1, feet = CELL_H * cell.y + 2;
-      const cands = [[tx, feet], [tx - 1, feet], [tx + 1, feet], [tx, head], [tx - 1, head], [tx + 1, head]];
+      const cL = CELL_W * cell.x + 1, cR = CELL_W * cell.x + 2;
+      const head = CELL_H * cell.y + 1, feet = CELL_H * cell.y + 2;
+      const cands = [[cL, feet], [cR, feet], [cL, head], [cR, head]];
       for (const [x, y] of cands) if (this._standT(x, y) && reach.has(x + "," + y)) return { tx: x, ty: y };
       for (const [x, y] of cands) if (this._standT(x, y)) return { tx: x, ty: y };
       return null;
@@ -419,12 +423,12 @@
     }
     isSolid(tx, ty) { return this.tileAt(tx, ty) === TILE.WALL; }
     isLadder(tx, ty) { return this.tileAt(tx, ty) === TILE.LADDER; }
-    // Case « au sol » d'une cellule (rangée des pieds).
-    cellCenterTile(cx, cy) { return { tx: 2 * cx + 1, ty: CELL_H * cy + 2 }; }
+    // Case « au sol » d'une cellule (rangée des pieds, colonne gauche).
+    cellCenterTile(cx, cy) { return { tx: CELL_W * cx + 1, ty: CELL_H * cy + 2 }; }
     // Cellule contenant une tuile donnée.
     cellAtTile(tx, ty) {
       return {
-        x: global.TQ.clamp(Math.floor((tx - 1) / 2), 0, this.cellCols - 1),
+        x: global.TQ.clamp(Math.floor((tx - 1) / CELL_W), 0, this.cellCols - 1),
         y: global.TQ.clamp(Math.floor((ty - 1) / CELL_H), 0, this.cellRows - 1)
       };
     }
