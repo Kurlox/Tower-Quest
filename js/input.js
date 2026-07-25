@@ -83,10 +83,16 @@
     };
 
     surface.addEventListener("touchstart", (e) => {
-      if (id !== null) return;
-      const t = e.changedTouches[0];
-      id = t.identifier; sx = t.clientX; sy = t.clientY;
-      startT = Date.now(); moved = false;
+      for (const t of e.changedTouches) {
+        if (id === null) {
+          // 1er doigt = manche de déplacement.
+          id = t.identifier; sx = t.clientX; sy = t.clientY;
+          startT = Date.now(); moved = false;
+        } else {
+          // 2e doigt (pendant qu'on dirige) = SAUT → permet le saut en diagonale.
+          pulseJump();
+        }
+      }
       e.preventDefault();
     }, { passive: false });
 

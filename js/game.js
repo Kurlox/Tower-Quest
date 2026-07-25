@@ -56,6 +56,7 @@
       this.hubScene = null;      // hub persistant de l'étage courant
       this.tpCooldown = 0;
       this.flash = 0;
+      this.revealTimer = 0; // brouillard levé par la lanterne (en frames)
       this._ui = {
         overlay: document.getElementById("overlay"),
         card: document.getElementById("overlay-card"),
@@ -237,6 +238,7 @@
 
     _enterMaze(maze) {
       this.tpCooldown = 30;
+      this.revealTimer = 0; // brouillard réactivé à chaque nouveau labyrinthe
       this.player.spawnAtTile(maze.entranceTile.tx, maze.entranceTile.ty, true);
     }
 
@@ -279,6 +281,10 @@
       if (this.paused || this.mode === "menu" || this.mode === "end") return;
       if (this.tpCooldown > 0) this.tpCooldown--;
       if (this.flash > 0) this.flash--;
+      if (this.revealTimer > 0) {
+        this.revealTimer--;
+        if (this.revealTimer === 0) this.toast("🏮 Lanterne éteinte…", 1400);
+      }
 
       const input = TQ.Input;
 
@@ -341,10 +347,10 @@
           if (p.overlapsTile(e.tx, e.ty, 4)) { this._reachExit(); return; }
         } else if (e.type === "flash") {
           if (!e.taken && p.overlapsTile(e.tx, e.ty, 3)) {
-            e.taken = true;         // masquée par le renderer une fois prise
-            maze.revealed = true;   // le brouillard disparaît
+            e.taken = true;              // masquée par le renderer une fois prise
+            this.revealTimer = 5 * 60;   // ~5 secondes de révélation, puis fondu
             this.flash = 14;
-            this.toast("🏮 Lanterne ! Labyrinthe révélé.", 2400);
+            this.toast("🏮 Lanterne ! Labyrinthe révélé ~5 s.", 2400);
           }
         } else if (e.type === "deadend") {
           if (p.overlapsTile(e.tx, e.ty, 4)) {
@@ -403,10 +409,11 @@
     /* ============================ Rendu ============================ */
     render() {
       const fog = this.mode === "maze";
+      // Force de révélation 0→1 (plein pendant 4 s, fondu sur la dernière ~0,75 s).
+      const reveal = Math.min(1, this.revealTimer / 45);
       const scene = {
         maze: this.scene, player: this.player, floorIndex: this.floorIndex,
-        fog, revealed: this.scene ? this.scene.revealed : false,
-        isHub: this.mode === "hub"
+        fog, reveal, isHub: this.mode === "hub"
       };
       if (this.mode === "menu" || this.mode === "end") {
         // Fond animé minimal derrière l'overlay (sans brouillard).
