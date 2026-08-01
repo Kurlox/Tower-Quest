@@ -97,9 +97,10 @@
 
       this._moveAndCollide(maze);
 
-      // Anim de marche
+      // Anim (marche au sol / grimpe en mouvement sur échelle)
       this.walking = this.onGround && Math.abs(this.vx) > 0.1;
-      if (this.walking || this.onLadder) this.animT += 0.25; else this.animT = 0;
+      const animating = this.walking || (this.onLadder && Math.abs(this.vy) > 0.3);
+      if (animating) this.animT += 0.28; else this.animT = 0;
     }
 
     _moveAndCollide(maze) {

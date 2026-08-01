@@ -58,6 +58,7 @@
       this.flash = 0;
       this.revealTimer = 0; // brouillard levé par la lanterne (en frames)
       this.timeMs = 0;      // chrono de la partie
+      this.gems = 0;        // gemmes collectées
       this._airFrames = 0;
       this._wasGround = false;
       this.bestMs = parseInt(localStorage.getItem("tq_best") || "0", 10) || 0;
@@ -67,7 +68,8 @@
         toast: document.getElementById("toast"),
         floor: document.getElementById("floor-label"),
         deaths: document.getElementById("deaths-label"),
-        time: document.getElementById("time-label")
+        time: document.getElementById("time-label"),
+        gems: document.getElementById("gem-label")
       };
       this._toastTimer = null;
     }
@@ -95,6 +97,7 @@
       this._ui.floor.textContent = def ? def.name : "—";
       this._ui.deaths.textContent = "☠ " + this.deaths;
       if (this._ui.time) this._ui.time.textContent = Game.fmtTime(this.timeMs);
+      if (this._ui.gems) this._ui.gems.textContent = "💎 " + this.gems;
     }
 
     /* ============================ Démarrage ============================ */
@@ -120,7 +123,7 @@
       `);
       document.getElementById("btn-play").onclick = () => {
         TQ.Audio.resume(); TQ.Audio.sfx("click");
-        this.deaths = 0; this.timeMs = 0;
+        this.deaths = 0; this.timeMs = 0; this.gems = 0;
         this.hideOverlay();
         this.goToFloor(0);
       };
@@ -142,7 +145,7 @@
       const seed = TQ.makeSeed(this.runSeed, 999, 1);
       const maze = TQ.generateMaze({
         cols: 7, rows: 5, seed, hasExit: true,
-        braid: 0.04, spikes: 1,
+        braid: 0.04, spikes: 1, gems: 2,
         teleporters: ["closer", "entrance"] // 2 max (rapproche + renvoie à l'entrée)
       });
       this.scene = maze;
@@ -175,6 +178,7 @@
       this.exitDoors = new Set(idxs.slice(0, def.exits));
 
       this.player.spawnAtTile(hub.entranceTile.tx, hub.entranceTile.ty, true);
+      this.renderer.snapCam();
       const msg = def.kind === "final"
         ? "L'ultime porte t'attend…"
         : `${def.name} — ${def.doors} portes, ${def.exits} mène${def.exits > 1 ? "nt" : ""} plus haut. Entre : ▲ / E.`;
@@ -219,7 +223,7 @@
         // Labyrinthe géant ultra dur (2 téléporteurs max, comme partout).
         return {
           cols: TOWER_WIDTH, rows: 18, seed, hasExit: true, braid: 0.16,
-          spikes: 20,
+          spikes: 20, gems: 8,
           teleporters: this._teleMix(rng, 2, true)
         };
       }
@@ -229,7 +233,7 @@
       return {
         cols: TOWER_WIDTH, rows, seed, hasExit,
         braid: 0.05 + f * 0.015,
-        spikes,
+        spikes, gems: 3 + f,
         teleporters: this._teleMix(rng, nTele, false)
       };
     }
@@ -264,6 +268,7 @@
       this.tpCooldown = 30;
       this.revealTimer = 0; // brouillard réactivé à chaque nouveau labyrinthe
       this.player.spawnAtTile(maze.entranceTile.tx, maze.entranceTile.ty, true);
+      this.renderer.snapCam();
     }
 
     _returnToHub(door) {
@@ -276,6 +281,7 @@
       // Replace le joueur devant la porte qu'il vient de quitter.
       const spawnX = door ? door.tx : this.hubScene.entranceTile.tx;
       this.player.spawnAtTile(spawnX, this.hubScene.entranceTile.ty, true);
+      this.renderer.snapCam();
     }
 
     _nextFloor() {
@@ -302,14 +308,14 @@
         <h1>VICTOIRE !</h1>
         <h2>La tour est vaincue</h2>
         <p>Tu as traversé le labyrinthe géant et percé la Curiosity.</p>
-        <p>⏱ Temps : <b>${Game.fmtTime(t)}</b> · ☠ Morts : <b>${this.deaths}</b></p>
+        <p>⏱ Temps : <b>${Game.fmtTime(t)}</b> · ☠ Morts : <b>${this.deaths}</b> · 💎 <b>${this.gems}</b></p>
         ${record}
         <button class="btn" id="btn-again">Rejouer</button>
       `);
       document.getElementById("btn-again").onclick = () => {
         TQ.Audio.sfx("click");
         this.runSeed = (Math.random() * 0xffffffff) >>> 0;
-        this.deaths = 0; this.timeMs = 0;
+        this.deaths = 0; this.timeMs = 0; this.gems = 0;
         TQ.Particles.clear();
         this.hideOverlay();
         this.goToFloor(0);
@@ -402,6 +408,14 @@
           }
         } else if (e.type === "exit") {
           if (p.overlapsTile(e.tx, e.ty, 4)) { this._reachExit(); return; }
+        } else if (e.type === "gem") {
+          if (!e.taken && p.overlapsTile(e.tx, e.ty, 2)) {
+            e.taken = true;
+            this.gems++;
+            this.updateHUD();
+            TQ.Audio.sfx("gem");
+            TQ.Particles.sparkle((e.tx + 0.5) * T, (e.ty + 0.5) * T, "#37e0c8", 12);
+          }
         } else if (e.type === "flash") {
           if (!e.taken && p.overlapsTile(e.tx, e.ty, 3)) {
             e.taken = true;              // masquée par le renderer une fois prise
@@ -442,6 +456,7 @@
       if (e.variant === "entrance") {
         // Retour direct sur la case d'entrée (où l'on tient).
         p.spawnAtTile(maze.entranceTile.tx, maze.entranceTile.ty, false);
+        this.renderer.snapCam();
         TQ.Particles.sparkle(p.cx, p.cy, col, 14);
         this.tpCooldown = 40; this.flash = 10;
         this.toast("✦ Téléporteur : retour à l'entrée !", 1800);
@@ -455,6 +470,7 @@
       }
       const c = maze.cellCenterTile(target.x, target.y);
       p.spawnAtTile(c.tx, c.ty, false);
+      this.renderer.snapCam();
       TQ.Particles.sparkle(p.cx, p.cy, col, 14);
       this.tpCooldown = 40;
       this.flash = 10;
