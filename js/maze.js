@@ -412,6 +412,26 @@
         if (best) ents.push({ type: "flash", tx: best.x, ty: best.y });
       }
 
+      // -- Gemmes : récompense d'exploration (optionnelles), sur des cases
+      //    atteignables et bien réparties.
+      const gemCount = opts.gems || 0;
+      if (gemCount > 0 && this.reach) {
+        const cand = [];
+        for (const k of this.reach) {
+          const [x, y] = k.split(",").map(Number);
+          if (safe(x, y)) cand.push({ x, y });
+        }
+        this.rng.shuffle(cand);
+        const placed = [];
+        for (const c of cand) {
+          if (placed.length >= gemCount) break;
+          if (placed.every(p => Math.abs(p.x - c.x) + Math.abs(p.y - c.y) > 3)) {
+            placed.push(c);
+            ents.push({ type: "gem", tx: c.x, ty: c.y });
+          }
+        }
+      }
+
       // -- Marqueur de sortie / cul-de-sac.
       ents.push({ type: this.hasExit ? "exit" : "deadend", tx: this.exitTile.tx, ty: this.exitTile.ty });
     }

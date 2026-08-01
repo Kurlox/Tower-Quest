@@ -38,25 +38,34 @@
       this.ctx.imageSmoothingEnabled = false;
     }
 
-    centerOn(px, py, maze) {
+    centerOn(px, py, maze, player) {
       const viewW = this.vw / this.scale;
       const viewH = this.vh / this.scale;
-      let cx = px - viewW / 2;
+      // Anticipation : on regarde un peu devant/vers le mouvement du joueur.
+      const lookX = player ? player.facing * T * 1.6 : 0;
+      let cx = px + lookX - viewW / 2;
       let cy = py - viewH / 2;
       const worldW = maze.w * T, worldH = maze.h * T;
-      // Clamp caméra aux bornes du monde (sauf si plus petit que l'écran).
       if (worldW > viewW) cx = global.TQ.clamp(cx, 0, worldW - viewW);
       else cx = (worldW - viewW) / 2;
       if (worldH > viewH) cy = global.TQ.clamp(cy, 0, worldH - viewH);
       else cy = (worldH - viewH) / 2;
-      this.cam.x = cx; this.cam.y = cy;
+      // Suivi en douceur (lerp) ; on colle net si la cible saute loin
+      // (changement de scène / téléportation).
+      if (this._camInit && Math.hypot(cx - this.cam.x, cy - this.cam.y) < Math.max(viewW, viewH)) {
+        this.cam.x += (cx - this.cam.x) * 0.16;
+        this.cam.y += (cy - this.cam.y) * 0.16;
+      } else {
+        this.cam.x = cx; this.cam.y = cy; this._camInit = true;
+      }
     }
+    snapCam() { this._camInit = false; }
 
     render(scene) {
       const { ctx } = this;
       this.time += 1;
       const maze = scene.maze, player = scene.player;
-      this.centerOn(player.cx, player.cy, maze);
+      this.centerOn(player.cx, player.cy, maze, player);
 
       // Secousse d'écran.
       let shx = 0, shy = 0;
@@ -218,11 +227,38 @@
           case "exit": this._exit(px, py, tpx); break;
           case "deadend": this._deadend(px, py); break;
           case "flash": this._flash(px, py, tpx); break;
+          case "gem": this._gem(px, py, tpx); break;
           case "torch": this._torch(px, py, tpx); break;
           case "banner": this._banner(px, py, e); break;
           case "door": this._door(px, py, e, tpx); break;
         }
       }
+    }
+
+    _gem(px, py, tpx) {
+      const { ctx } = this;
+      const cx = px + T / 2, cy = py + T / 2 + Math.sin(tpx * 0.1 + px) * 1.5;
+      const sw = 0.6 + 0.4 * Math.abs(Math.sin(tpx * 0.08)); // scintillement
+      const rw = T * 0.26, rh = T * 0.34;
+      // Halo
+      const g = ctx.createRadialGradient(cx, cy, 1, cx, cy, T * 0.7);
+      g.addColorStop(0, `rgba(55,224,200,${0.35 * sw})`);
+      g.addColorStop(1, "rgba(55,224,200,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(px - T * 0.3, py - T * 0.3, T * 1.6, T * 1.6);
+      // Diamant
+      ctx.fillStyle = "#37e0c8";
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - rh); ctx.lineTo(cx + rw, cy - rh * 0.2);
+      ctx.lineTo(cx, cy + rh); ctx.lineTo(cx - rw, cy - rh * 0.2);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#9bf7e8";
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - rh); ctx.lineTo(cx + rw * 0.5, cy - rh * 0.2);
+      ctx.lineTo(cx, cy + rh * 0.3); ctx.lineTo(cx - rw * 0.5, cy - rh * 0.2);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#eafffb";
+      ctx.fillRect(cx - 1.5, cy - rh * 0.7, 2, 4);
     }
 
     _torch(px, py, tpx) {
@@ -437,37 +473,80 @@
 
     _drawPlayer(p) {
       const { ctx } = this;
-      const x = p.x, y = p.y, w = p.w, h = p.h;
-      const bob = p.walking ? Math.sin(p.animT) * 1.2 : 0;
-      // Ombre
-      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      const w = p.w, h = p.h;
+      const t = p.animT;
+      const climbing = p.onLadder;
+      const airborne = !p.onGround && !climbing;
+      const bob = (p.walking || climbing) ? Math.sin(t) * 1.2 : Math.sin(this.time * 0.08) * 0.6;
+
+      // Ombre (s'atténue en l'air).
+      const shA = airborne ? 0.15 : 0.35;
+      ctx.fillStyle = `rgba(0,0,0,${shA})`;
       ctx.beginPath();
-      ctx.ellipse(x + w / 2, y + h + 1, w * 0.5, 3, 0, 0, Math.PI * 2);
+      ctx.ellipse(p.x + w / 2, p.y + h + 1, w * 0.5, 3, 0, 0, Math.PI * 2);
       ctx.fill();
-      // Corps (petit·e explorateur·rice)
+
       ctx.save();
-      ctx.translate(x, y + bob);
-      // cape
+      ctx.translate(p.x, p.y + bob);
+
+      // Jambes selon l'état.
+      ctx.fillStyle = "#2a1a5a";
+      if (climbing) {
+        const s = Math.sin(t) * h * 0.12;
+        ctx.fillRect(w * 0.26, h * 0.78 + s, w * 0.2, h * 0.22);
+        ctx.fillRect(w * 0.54, h * 0.78 - s, w * 0.2, h * 0.22);
+      } else if (airborne) {
+        const tuck = p.vy < 0 ? 0.14 : 0.0; // repliées en montée, tendues en chute
+        ctx.fillRect(w * 0.24, h * (0.78 + tuck), w * 0.2, h * (0.22 - tuck));
+        ctx.fillRect(w * 0.56, h * (0.78 + tuck), w * 0.2, h * (0.22 - tuck));
+      } else {
+        const stride = p.walking ? Math.sin(t) * w * 0.2 : 0;
+        ctx.fillRect(w * 0.24 + stride, h * 0.8, w * 0.2, h * 0.2);
+        ctx.fillRect(w * 0.56 - stride, h * 0.8, w * 0.2, h * 0.2);
+      }
+
+      // Cape (flotte en l'air / en marche).
+      const capeSway = airborne ? h * 0.12 : (p.walking ? Math.abs(Math.sin(t)) * h * 0.06 : 0);
       ctx.fillStyle = "#37e0c8";
-      ctx.fillRect(w * 0.12, h * 0.35, w * 0.76, h * 0.5);
-      // torse
+      ctx.beginPath();
+      ctx.moveTo(w * 0.16, h * 0.34);
+      ctx.lineTo(w * 0.84, h * 0.34);
+      ctx.lineTo(w * 0.7, h * 0.86 + capeSway);
+      ctx.lineTo(w * 0.3, h * 0.86 + capeSway);
+      ctx.closePath();
+      ctx.fill();
+
+      // Torse.
       ctx.fillStyle = "#7c5cff";
-      ctx.fillRect(w * 0.18, h * 0.35, w * 0.64, h * 0.45);
-      // tête
+      ctx.fillRect(w * 0.2, h * 0.35, w * 0.6, h * 0.45);
+
+      // Bras (grimpe = alternés vers le haut ; sinon le long du corps).
+      ctx.fillStyle = "#6a4ad0";
+      if (climbing) {
+        const a = Math.sin(t) * h * 0.1;
+        ctx.fillRect(w * 0.1, h * 0.3 - a, w * 0.16, h * 0.24);
+        ctx.fillRect(w * 0.74, h * 0.3 + a, w * 0.16, h * 0.24);
+      } else if (airborne && p.vy < 0) {
+        ctx.fillRect(w * 0.06, h * 0.26, w * 0.16, h * 0.22);
+        ctx.fillRect(w * 0.78, h * 0.26, w * 0.16, h * 0.22);
+      } else {
+        ctx.fillRect(w * 0.12, h * 0.4, w * 0.14, h * 0.28);
+        ctx.fillRect(w * 0.74, h * 0.4, w * 0.14, h * 0.28);
+      }
+
+      // Tête.
       ctx.fillStyle = "#ffd9a8";
       ctx.fillRect(w * 0.22, h * 0.05, w * 0.56, h * 0.34);
-      // casque / cheveux
+      // Casque / cheveux.
       ctx.fillStyle = "#2a1a5a";
       ctx.fillRect(w * 0.2, h * 0.02, w * 0.6, h * 0.14);
-      // yeux (selon direction)
+      // Yeux (direction) + clin d'œil occasionnel.
+      const blink = (this.time % 200) < 6;
       ctx.fillStyle = "#1a1030";
-      const eyeX = p.facing >= 0 ? w * 0.55 : w * 0.3;
-      ctx.fillRect(eyeX, h * 0.2, 2.5, 3);
-      // jambes animées
-      ctx.fillStyle = "#2a1a5a";
-      const stride = p.walking ? Math.sin(p.animT) * w * 0.18 : 0;
-      ctx.fillRect(w * 0.24 + stride, h * 0.8, w * 0.2, h * 0.2);
-      ctx.fillRect(w * 0.56 - stride, h * 0.8, w * 0.2, h * 0.2);
+      const eyeX = p.facing >= 0 ? w * 0.52 : w * 0.32;
+      if (blink) ctx.fillRect(eyeX, h * 0.22, 3, 1.5);
+      else ctx.fillRect(eyeX, h * 0.19, 2.6, 3.2);
+
       ctx.restore();
     }
   }
