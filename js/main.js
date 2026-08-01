@@ -32,38 +32,49 @@
       if (!m) TQ.Audio.sfx("click");
     });
 
-    // Bouton menu (pause simple / retour menu).
+    // Bouton « ↩ retour aux portes » (visible seulement dans un labyrinthe de porte).
+    document.getElementById("btn-back").addEventListener("click", () => {
+      TQ.Audio.sfx("click");
+      game.bailToHub();
+    });
+
+    function openPause() {
+      const best = game.bestMs ? ` · 🏆 ${TQ.Game.fmtTime(game.bestMs)}` : "";
+      game.paused = true;
+      game.showOverlay(`
+        <h1>PAUSE</h1>
+        <h2>${game.floorName()}</h2>
+        <p>⏱ ${TQ.Game.fmtTime(game.timeMs)} · ☠ ${game.deaths}${best}</p>
+        <div class="keys">
+          Glisse pour bouger/grimper · coup de doigt vers le haut = saut ·
+          🏮 la lanterne révèle le labyrinthe ~5 s · ↩ pour ressortir d'une porte
+        </div>
+        <div class="btn-row">
+          <button class="btn" id="btn-resume">Reprendre</button>
+          <button class="btn ghost" id="btn-sound2">${TQ.Audio.isMuted() ? "🔇 Son coupé" : "🔊 Son"}</button>
+          <button class="btn ghost" id="btn-quit">Menu</button>
+        </div>
+      `);
+      document.getElementById("btn-resume").onclick = () => { TQ.Audio.sfx("click"); game.paused = false; game.hideOverlay(); };
+      document.getElementById("btn-sound2").onclick = (ev) => {
+        const m = TQ.Audio.toggleMuted();
+        soundBtn.textContent = m ? "🔇" : "🔊";
+        ev.target.textContent = m ? "🔇 Son coupé" : "🔊 Son";
+        if (!m) TQ.Audio.sfx("click");
+      };
+      document.getElementById("btn-quit").onclick = () => { TQ.Audio.sfx("click"); game.paused = false; game.hideOverlay(); game.startMenu(); };
+    }
+
+    // Bouton menu (pause / reprise).
     document.getElementById("btn-menu").addEventListener("click", () => {
       if (game.mode === "menu" || game.mode === "end") return;
       TQ.Audio.sfx("click");
-      game.paused = !game.paused;
-      if (game.paused) {
-        const best = game.bestMs ? ` · 🏆 ${TQ.Game.fmtTime(game.bestMs)}` : "";
-        game.showOverlay(`
-          <h1>PAUSE</h1>
-          <h2>${game.floorName()}</h2>
-          <p>⏱ ${TQ.Game.fmtTime(game.timeMs)} · ☠ ${game.deaths}${best}</p>
-          <div class="keys">
-            Glisse pour bouger/grimper · coup de doigt vers le haut = saut ·
-            🏮 la lanterne révèle le labyrinthe ~5 s
-          </div>
-          <div class="btn-row">
-            <button class="btn" id="btn-resume">Reprendre</button>
-            <button class="btn ghost" id="btn-sound2">${TQ.Audio.isMuted() ? "🔇 Son coupé" : "🔊 Son"}</button>
-            <button class="btn ghost" id="btn-quit">Menu</button>
-          </div>
-        `);
-        document.getElementById("btn-resume").onclick = () => { TQ.Audio.sfx("click"); game.paused = false; game.hideOverlay(); };
-        document.getElementById("btn-sound2").onclick = (ev) => {
-          const m = TQ.Audio.toggleMuted();
-          soundBtn.textContent = m ? "🔇" : "🔊";
-          ev.target.textContent = m ? "🔇 Son coupé" : "🔊 Son";
-          if (!m) TQ.Audio.sfx("click");
-        };
-        document.getElementById("btn-quit").onclick = () => { TQ.Audio.sfx("click"); game.paused = false; game.hideOverlay(); game.startMenu(); };
-      } else {
-        game.hideOverlay();
-      }
+      if (game.paused) { game.paused = false; game.hideOverlay(); } else openPause();
+    });
+
+    // Pause automatique quand l'app passe en arrière-plan.
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden && !game.paused && game.mode !== "menu" && game.mode !== "end") openPause();
     });
 
     game.startMenu();

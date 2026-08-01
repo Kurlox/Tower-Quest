@@ -68,7 +68,8 @@
         toast: document.getElementById("toast"),
         floor: document.getElementById("floor-label"),
         deaths: document.getElementById("deaths-label"),
-        time: document.getElementById("time-label")
+        time: document.getElementById("time-label"),
+        back: document.getElementById("btn-back")
       };
       this._toastTimer = null;
     }
@@ -78,6 +79,15 @@
       return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
     }
     floorName() { const d = FLOORS[this.floorIndex]; return d ? d.name : "—"; }
+    // Affiche/masque le bouton « ↩ retour aux portes ».
+    _showBack(v) { if (this._ui.back) this._ui.back.classList.toggle("hidden", !v); }
+    // Ressortir immédiatement vers le hall (bouton HUD).
+    bailToHub() {
+      if (this.mode === "maze" && (this.context.type === "door" || this.context.type === "final")) {
+        TQ.Audio.sfx("door");
+        this._returnToHub(this.context.door);
+      }
+    }
 
     /* ============================ UI helpers ============================ */
     showOverlay(html) {
@@ -102,6 +112,7 @@
     /* ============================ Démarrage ============================ */
     startMenu() {
       this.mode = "menu";
+      this._showBack(false);
       TQ.Particles.clear();
       TQ.Audio.music("menu");
       const best = this.bestMs ? `<p class="keys">🏆 Meilleur temps : <b>${Game.fmtTime(this.bestMs)}</b></p>` : "";
@@ -151,13 +162,25 @@
       this.scene = maze;
       this.mode = "maze";
       this.context = { type: "tutorial" };
+      this._hints = new Set(); // astuces contextuelles (une fois chacune)
       TQ.Audio.music("game");
+      this._showBack(false);
       this._enterMaze(maze);
       this.toast("Bienvenue ! Atteins le portail brillant ✦", 3200);
-      setTimeout(() => {
-        if (this.context && this.context.type === "tutorial")
-          this.toast("⚠ Pointes = retour au départ. Cercles = téléporteurs.", 3600);
-      }, 3600);
+    }
+
+    // Astuces contextuelles du tutoriel (déclenchées par proximité, une fois).
+    _tutoHints(p, maze) {
+      const H = this._hints || (this._hints = new Set());
+      const once = (k, msg) => { if (!H.has(k)) { H.add(k); this.toast(msg, 2800); } };
+      if (p.onLadder) once("climb", "🪜 Glisse ▲/▼ pour grimper aux échelles.");
+      for (const e of maze.entities) {
+        if (Math.abs(p.cx - (e.tx + 0.5) * T) > T * 2.6 || Math.abs(p.cy - (e.ty + 0.5) * T) > T * 2.6) continue;
+        if (e.type === "spike") once("spike", "⚠ Les pointes renvoient au départ — saute par-dessus !");
+        else if (e.type === "teleporter") once("tele", "✦ Téléporteur : effet aléatoire à chaque passage !");
+        else if (e.type === "flash") once("lantern", "🏮 Ramasse la lanterne : elle révèle le labyrinthe ~5 s.");
+        else if (e.type === "exit") once("exit", "✦ Le portail de sortie ! Atteins-le pour monter.");
+      }
     }
 
     _loadHub(def) {
@@ -166,6 +189,7 @@
       this.scene = hub;
       this.mode = "hub";
       this.context = { type: "hub" };
+      this._showBack(false);
       // Même ambiance que les labyrinthes de l'étage → pas de coupure musicale
       // en entrant/sortant des portes ; le final a sa propre musique intense.
       TQ.Audio.music(def.kind === "final" ? "final" : "game");
@@ -246,6 +270,7 @@
       this.context = { type: isFinal ? "final" : "door", door };
       TQ.Audio.sfx("door");
       TQ.Audio.music(isFinal ? "final" : "game");
+      this._showBack(true);
       this._enterMaze(maze);
       this.toast(hasExit || isFinal
         ? "Trouve le portail vers le haut ✦   (▼ à l'entrée pour ressortir)"
@@ -265,6 +290,7 @@
       this.mode = "hub";
       this.context = { type: "hub" };
       this.fade = 0.85; // fondu de transition
+      this._showBack(false);
       TQ.Audio.sfx("door");
       TQ.Audio.music(FLOORS[this.floorIndex].kind === "final" ? "final" : "game");
       // Replace le joueur devant la porte qu'il vient de quitter.
@@ -282,6 +308,7 @@
 
     _victory() {
       this.mode = "end";
+      this._showBack(false);
       TQ.Audio.music("victory");
       TQ.Audio.sfx("victory");
       const t = this.timeMs;
@@ -383,6 +410,8 @@
           return;
         }
       }
+
+      if (this.context.type === "tutorial") this._tutoHints(p, maze);
 
       // --- Interactions avec les entités ---
       for (const e of maze.entities) {
