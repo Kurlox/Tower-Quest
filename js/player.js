@@ -9,11 +9,17 @@
 
   const TILE = global.TQ.TILEPX = 24; // taille d'une tuile en pixels-monde
 
-  const GRAVITY = 0.6;    // plus faible → saut plus flottant, plus de temps pour orienter
+  const GRAVITY = 0.62;
+  const APEX_GRAV = 0.34; // gravité réduite près du sommet → « flottement » pour viser
   const MAX_FALL = 10;
-  const MOVE_SPEED = 3.2;
+  const MOVE_SPEED = 3.6;
   const CLIMB_SPEED = 2.6;
-  const JUMP_VEL = -10.3; // apogée ≈ 3,6 tuiles, mais montée plus lente (contrôle aérien)
+  const JUMP_VEL = -10.4;
+  // Inertie horizontale : on accélère vers la cible et on GARDE de l'élan en
+  // l'air (le saut en diagonale reste fluide même si le geste perturbe la
+  // direction une fraction de seconde).
+  const ACC_GROUND = 0.85, ACC_AIR = 0.6;
+  const FRICT_GROUND = 0.55, FRICT_AIR = 0.9;
 
   class Player {
     constructor() {
@@ -63,8 +69,14 @@
       const onLadderTile = maze.isLadder(midTx, midTy) ||
         maze.isLadder(midTx, Math.floor((this.y + this.h - 2) / TILE));
 
-      // --- Mouvement horizontal (direct, pour un contrôle net en labyrinthe) ---
-      this.vx = dir * MOVE_SPEED;
+      // --- Mouvement horizontal avec inertie (accélération + élan aérien) ---
+      if (dir !== 0) {
+        const acc = this.onGround ? ACC_GROUND : ACC_AIR;
+        this.vx += (dir * MOVE_SPEED - this.vx) * acc;
+      } else {
+        this.vx *= this.onGround ? FRICT_GROUND : FRICT_AIR;
+        if (Math.abs(this.vx) < 0.06) this.vx = 0;
+      }
 
       // Coyote time + tampon de saut : le saut est plus indulgent (utile au
       // tactile). On mémorise un appui récent et on autorise un saut un court
@@ -84,8 +96,9 @@
         this.vy = vdir * CLIMB_SPEED;
         if (st.jump) { this.onLadder = false; this.vy = JUMP_VEL; this.jumpBuffer = 0; }
       } else {
-        // --- Mode plateforme : gravité ---
-        this.vy += GRAVITY;
+        // --- Mode plateforme : gravité (réduite près du sommet du saut) ---
+        const g = Math.abs(this.vy) < 2.2 ? APEX_GRAV : GRAVITY;
+        this.vy += g;
         if (this.vy > MAX_FALL) this.vy = MAX_FALL;
         if (this.jumpBuffer > 0 && (this.onGround || this.coyote > 0)) {
           this.vy = JUMP_VEL;

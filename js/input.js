@@ -68,7 +68,7 @@
     setTimeout(() => { state.jump = false; }, 130);
   }
 
-  const FLICK_V = 0.9;    // vitesse (px/ms) d'un coup de doigt vers le haut = saut
+  const FLICK_V = 0.7;    // vitesse (px/ms) d'un coup de doigt vers le haut = saut (plus facile)
 
   function bindDrag(surface) {
     let id = null, sx = 0, sy = 0, startT = 0, moved = false;
