@@ -317,8 +317,8 @@
       this._showBack(true);
       this._enterMaze(maze);
       this.toast(hasExit || isFinal
-        ? "Trouve le portail vers le haut ✦   (▼ à l'entrée pour ressortir)"
-        : "Explore… (▼ à l'entrée pour ressortir)", 3000);
+        ? "Trouve le portail vers le haut ✦   (↩ pour ressortir)"
+        : "Explore… (↩ pour ressortir vers les portes)", 3000);
     }
 
     _enterMaze(maze) {
