@@ -43,6 +43,7 @@
   }
 
   function resume() { _build(); if (ctx && ctx.state === "suspended") ctx.resume(); }
+  function suspend() { if (ctx && ctx.state === "running") ctx.suspend(); }
 
   /* ----------------------------- Bruitages ----------------------------- */
   function _tone(o) {
@@ -188,5 +189,5 @@
   function isMuted() { return muted; }
 
   global.TQ = global.TQ || {};
-  global.TQ.Audio = { resume, sfx, music, toggleMuted, isMuted };
+  global.TQ.Audio = { resume, suspend, sfx, music, toggleMuted, isMuted };
 })(window);

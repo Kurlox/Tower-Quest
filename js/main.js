@@ -72,9 +72,14 @@
       if (game.paused) { game.paused = false; game.hideOverlay(); } else openPause();
     });
 
-    // Pause automatique quand l'app passe en arrière-plan.
+    // Pause automatique + coupure audio quand l'app passe en arrière-plan.
     document.addEventListener("visibilitychange", () => {
-      if (document.hidden && !game.paused && game.mode !== "menu" && game.mode !== "end") openPause();
+      if (document.hidden) {
+        if (!game.paused && game.mode !== "menu" && game.mode !== "end") openPause();
+        TQ.Audio.suspend();
+      } else {
+        TQ.Audio.resume();
+      }
     });
 
     game.startMenu();
