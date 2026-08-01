@@ -40,10 +40,14 @@ confortable au tactile.
 ## 🏗️ Structure de la tour
 
 - **Tutoriel** — un mini-labyrinthe pour apprendre : déplacements, échelles,
-  **pièges** (retour au départ) et **3 téléporteurs** :
-  - 🟢 *rapproche* de la sortie,
-  - 🟠 *projette au hasard* dans le labyrinthe,
-  - 🔴 *ramène à l'entrée*.
+  **pièges** (retour au départ) et **téléporteurs capricieux**. À chaque
+  passage, un téléporteur a une chance sur trois de :
+  - *rapprocher* de la sortie,
+  - *éloigner au maximum* de la sortie,
+  - *ramener à l'entrée*.
+
+Les seuls obstacles du jeu sont le labyrinthe, les pièges et les téléporteurs —
+et l'unique objectif est de franchir tous les étages de la tour.
 - **Étage I** — 5 portes, **2** mènent à une sortie, les autres sont sans issue.
 - **Étage II** — 4 portes, 1 sortie.
 - **Étage III** — 3 portes, 1 sortie.

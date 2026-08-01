@@ -103,10 +103,6 @@
     },
     deadend() { _tone({ type: "sawtooth", freq: 200, to: 130, dur: 0.22, vol: 0.18 }); },
     click() { _tone({ type: "square", freq: 660, dur: 0.05, vol: 0.18 }); },
-    gem() {
-      _tone({ type: "triangle", freq: 1046, dur: 0.07, vol: 0.18 });
-      setTimeout(() => _tone({ type: "triangle", freq: 1568, dur: 0.12, vol: 0.18 }), 55);
-    },
     victory() {
       const seq = [523, 659, 784, 1047, 1319, 1047, 1319, 1568];
       seq.forEach((f, i) => setTimeout(() => _tone({ type: "triangle", freq: f, dur: 0.22, vol: 0.24 }), i * 130));

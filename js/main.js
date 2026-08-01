@@ -42,10 +42,10 @@
         game.showOverlay(`
           <h1>PAUSE</h1>
           <h2>${game.floorName()}</h2>
-          <p>⏱ ${TQ.Game.fmtTime(game.timeMs)} · 💎 ${game.gems} · ☠ ${game.deaths}${best}</p>
+          <p>⏱ ${TQ.Game.fmtTime(game.timeMs)} · ☠ ${game.deaths}${best}</p>
           <div class="keys">
             Glisse pour bouger/grimper · coup de doigt vers le haut = saut ·
-            🏮 lanterne ~5 s · 💎 gemmes à collecter · évite les rôdeurs
+            🏮 la lanterne révèle le labyrinthe ~5 s
           </div>
           <div class="btn-row">
             <button class="btn" id="btn-resume">Reprendre</button>
