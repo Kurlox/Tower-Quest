@@ -72,6 +72,8 @@ canvas#game {
   cursor: pointer;
 }
 .hud-btn:active { background: rgba(124, 92, 255, 0.4); }
+.hud-btn.hidden { display: none; }
+#btn-back { border-color: var(--accent2); color: var(--accent2); }
 
 /* ---------- Toast ---------- */
 #toast {
