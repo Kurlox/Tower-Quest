@@ -264,6 +264,7 @@
       this.scene = this.hubScene;
       this.mode = "hub";
       this.context = { type: "hub" };
+      this.fade = 0.85; // fondu de transition
       TQ.Audio.sfx("door");
       TQ.Audio.music(FLOORS[this.floorIndex].kind === "final" ? "final" : "game");
       // Replace le joueur devant la porte qu'il vient de quitter.
@@ -407,10 +408,13 @@
             this.toast("🏮 Lanterne ! Labyrinthe révélé ~5 s.", 2400);
           }
         } else if (e.type === "deadend") {
-          if (p.overlapsTile(e.tx, e.ty, 4) && !e.hit) {
-            this.toast("✗ Sans issue ! Retourne à l'entrée (▼).", 2600);
+          if (p.overlapsTile(e.tx, e.ty, 4)) {
+            // La croix du cul-de-sac renvoie directement au choix des portes.
             TQ.Audio.sfx("deadend");
-            e.hit = true;
+            TQ.Particles.sparkle((e.tx + 0.5) * T, (e.ty + 0.5) * T, "#ff5470", 14);
+            this.toast("✗ Cul-de-sac ! Retour au choix des portes.", 2200);
+            this._returnToHub(this.context.door);
+            return;
           }
         }
       }
