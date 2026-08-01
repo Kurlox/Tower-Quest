@@ -134,6 +134,39 @@
         const s = (i % 3) + 1;
         ctx.fillRect(sx, sy, s, s);
       }
+
+      // Tours lointaines (2 couches de parallaxe) → profondeur.
+      this._distantTowers(0.10, `hsl(${hue1}, 35%, 8%)`, 0.62);
+      this._distantTowers(0.22, `hsl(${hue1 + 8}, 32%, 11%)`, 0.72);
+
+      // Poussières lumineuses qui dérivent.
+      ctx.fillStyle = `hsla(${hue1 + 40}, 70%, 75%, 0.5)`;
+      for (let i = 0; i < 22; i++) {
+        const px = this.cam.x * 0.4;
+        const dx = (i * 137.5 - px + this.time * 0.25 * ((i % 3) + 1)) % this.vw;
+        const sx = (dx % this.vw + this.vw) % this.vw;
+        const sy = ((i * 83.1 + Math.sin(this.time * 0.02 + i) * 12) % this.vh + this.vh) % this.vh;
+        ctx.fillRect(sx, sy, 1.5, 1.5);
+      }
+    }
+
+    // Silhouettes de tours crénelées, ancrées en bas de l'écran.
+    _distantTowers(parallax, color, baseY) {
+      const { ctx } = this;
+      ctx.fillStyle = color;
+      const camX = this.cam.x * parallax;
+      const period = 220, tw = 90, top = this.vh * baseY;
+      for (let i = -1; i < this.vw / period + 2; i++) {
+        const bx = i * period - (camX % period);
+        ctx.fillRect(bx, top, tw, this.vh - top);
+        // créneaux
+        for (let c = 0; c < 4; c++) ctx.fillRect(bx + c * (tw / 4), top - 8, tw / 4 - 4, 8);
+        // fenêtre lueur
+        ctx.save();
+        ctx.fillStyle = "hsla(45, 80%, 60%, 0.10)";
+        ctx.fillRect(bx + tw * 0.35, top + 24, tw * 0.3, 14);
+        ctx.restore();
+      }
     }
 
     // Fond de « hall » : pierre sombre + grands piliers en arrière-plan.
@@ -220,9 +253,11 @@
       const tpx = this.time;
       for (const e of scene.maze.entities) {
         if (e.taken) continue; // lanterne déjà ramassée
-        const px = e.tx * T, py = e.ty * T;
+        const px = (e.type === "patrol" && e.x != null) ? e.x - T / 2 : e.tx * T;
+        const py = e.ty * T;
         switch (e.type) {
           case "spike": this._spike(px, py); break;
+          case "patrol": this._patrol(px, py, tpx); break;
           case "teleporter": this._teleporter(px, py, e.variant, tpx); break;
           case "exit": this._exit(px, py, tpx); break;
           case "deadend": this._deadend(px, py); break;
@@ -233,6 +268,30 @@
           case "door": this._door(px, py, e, tpx); break;
         }
       }
+    }
+
+    _patrol(px, py, tpx) {
+      const { ctx } = this;
+      const cx = px + T / 2, cy = py + T / 2, r = T * 0.34;
+      const rot = tpx * 0.18;
+      // Pointes
+      ctx.fillStyle = "#c9c9d6";
+      for (let i = 0; i < 8; i++) {
+        const a = rot + i * Math.PI / 4;
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+        ctx.lineTo(cx + Math.cos(a + 0.2) * r * 0.6, cy + Math.sin(a + 0.2) * r * 0.6);
+        ctx.lineTo(cx + Math.cos(a) * r * 1.5, cy + Math.sin(a) * r * 1.5);
+        ctx.closePath(); ctx.fill();
+      }
+      // Corps
+      ctx.fillStyle = "#3a2030";
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#ff5470"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(cx, cy, r * 0.6, 0, Math.PI * 2); ctx.stroke();
+      // Œil menaçant
+      ctx.fillStyle = "#ff5470";
+      ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fill();
     }
 
     _gem(px, py, tpx) {

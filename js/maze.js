@@ -432,6 +432,29 @@
         }
       }
 
+      // -- Rôdeurs : pièges MOBILES qui patrouillent un couloir. Jamais sur
+      //    l'itinéraire de la sortie, sur une plateforme avec de la place.
+      const patrolCount = opts.patrols || 0;
+      if (patrolCount > 0) {
+        const pspots = [];
+        for (let y = 2; y < this.h - 1; y++)
+          for (let x = 2; x < this.w - 2; x++)
+            if (this.tiles[y][x] === TILE.OPEN && this.tiles[y + 1][x] === TILE.WALL &&
+                this._openT(x - 1, y) && this._openT(x + 1, y) &&
+                this._solidT(x - 1, y + 1) && this._solidT(x + 1, y + 1) &&
+                safe(x, y) && !onPath(x, y))
+              pspots.push({ x, y });
+        this.rng.shuffle(pspots);
+        const placed = [];
+        for (const s of pspots) {
+          if (placed.length >= patrolCount) break;
+          if (placed.every(p => Math.abs(p.x - s.x) + Math.abs(p.y - s.y) > 4)) {
+            placed.push(s);
+            ents.push({ type: "patrol", tx: s.x, ty: s.y });
+          }
+        }
+      }
+
       // -- Marqueur de sortie / cul-de-sac.
       ents.push({ type: this.hasExit ? "exit" : "deadend", tx: this.exitTile.tx, ty: this.exitTile.ty });
     }

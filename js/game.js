@@ -56,6 +56,7 @@
       this.hubScene = null;      // hub persistant de l'étage courant
       this.tpCooldown = 0;
       this.flash = 0;
+      this.fade = 0;        // fondu de transition d'étage (1 → 0)
       this.revealTimer = 0; // brouillard levé par la lanterne (en frames)
       this.timeMs = 0;      // chrono de la partie
       this.gems = 0;        // gemmes collectées
@@ -78,6 +79,7 @@
       const s = Math.floor(ms / 1000);
       return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
     }
+    floorName() { const d = FLOORS[this.floorIndex]; return d ? d.name : "—"; }
 
     /* ============================ UI helpers ============================ */
     showOverlay(html) {
@@ -133,6 +135,7 @@
     goToFloor(index) {
       this.floorIndex = index;
       const def = FLOORS[index];
+      this.fade = 1; // fondu d'entrée d'étage
       this.updateHUD();
       if (def.kind === "tutorial") {
         this._loadTutorial();
@@ -223,7 +226,7 @@
         // Labyrinthe géant ultra dur (2 téléporteurs max, comme partout).
         return {
           cols: TOWER_WIDTH, rows: 18, seed, hasExit: true, braid: 0.16,
-          spikes: 20, gems: 8,
+          spikes: 20, gems: 8, patrols: 3,
           teleporters: this._teleMix(rng, 2, true)
         };
       }
@@ -233,7 +236,7 @@
       return {
         cols: TOWER_WIDTH, rows, seed, hasExit,
         braid: 0.05 + f * 0.015,
-        spikes, gems: 3 + f,
+        spikes, gems: 3 + f, patrols: Math.min(2, Math.max(0, f - 1)),
         teleporters: this._teleMix(rng, nTele, false)
       };
     }
@@ -328,6 +331,7 @@
       this.timeMs += 1000 / 60;
       if (this.tpCooldown > 0) this.tpCooldown--;
       if (this.flash > 0) this.flash--;
+      if (this.fade > 0) this.fade = Math.max(0, this.fade - 0.045);
       if (this.revealTimer > 0) {
         this.revealTimer--;
         if (this.revealTimer === 0) this.toast("🏮 Lanterne éteinte…", 1400);
@@ -398,6 +402,20 @@
       for (const e of maze.entities) {
         if (e.type === "spike") {
           if (p.overlapsTile(e.tx, e.ty, 3) && p.y + p.h > (e.ty + 0.4) * T) {
+            this._die();
+            return;
+          }
+        } else if (e.type === "patrol") {
+          // Rôdeur : avance et rebondit sur les murs / bords de plateforme.
+          if (e.x == null) { e.x = (e.tx + 0.5) * T; e.dir = 1; }
+          const speed = 1.05;
+          e.x += e.dir * speed;
+          const aheadTx = Math.floor((e.x + e.dir * T * 0.55) / T);
+          if (maze.isSolid(aheadTx, e.ty) || maze.isSolid(aheadTx, e.ty - 1) ||
+              !maze.isSolid(aheadTx, e.ty + 1)) {
+            e.dir *= -1; e.x += e.dir * speed;
+          }
+          if (Math.abs(p.cx - e.x) < T * 0.55 && Math.abs(p.cy - (e.ty + 0.5) * T) < T * 0.6) {
             this._die();
             return;
           }
@@ -507,11 +525,17 @@
         return;
       }
       this.renderer.render(scene);
-      if (this.flash > 0) {
-        const ctx = this.renderer.ctx;
+      const ctx = this.renderer.ctx;
+      if (this.flash > 0 || this.fade > 0) {
         ctx.setTransform(this.renderer.dpr, 0, 0, this.renderer.dpr, 0, 0);
-        ctx.fillStyle = `rgba(255,255,255,${this.flash / 40})`;
-        ctx.fillRect(0, 0, this.renderer.vw, this.renderer.vh);
+        if (this.flash > 0) {
+          ctx.fillStyle = `rgba(255,255,255,${this.flash / 40})`;
+          ctx.fillRect(0, 0, this.renderer.vw, this.renderer.vh);
+        }
+        if (this.fade > 0) {
+          ctx.fillStyle = `rgba(6,5,14,${this.fade})`;
+          ctx.fillRect(0, 0, this.renderer.vw, this.renderer.vh);
+        }
       }
     }
   }

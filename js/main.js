@@ -38,22 +38,33 @@
       TQ.Audio.sfx("click");
       game.paused = !game.paused;
       if (game.paused) {
+        const best = game.bestMs ? ` · 🏆 ${TQ.Game.fmtTime(game.bestMs)}` : "";
         game.showOverlay(`
           <h1>PAUSE</h1>
-          <p>${FLOORNAME(game)} · ⏱ ${TQ.Game.fmtTime(game.timeMs)} · ☠ ${game.deaths}</p>
+          <h2>${game.floorName()}</h2>
+          <p>⏱ ${TQ.Game.fmtTime(game.timeMs)} · 💎 ${game.gems} · ☠ ${game.deaths}${best}</p>
+          <div class="keys">
+            Glisse pour bouger/grimper · coup de doigt vers le haut = saut ·
+            🏮 lanterne ~5 s · 💎 gemmes à collecter · évite les rôdeurs
+          </div>
           <div class="btn-row">
             <button class="btn" id="btn-resume">Reprendre</button>
+            <button class="btn ghost" id="btn-sound2">${TQ.Audio.isMuted() ? "🔇 Son coupé" : "🔊 Son"}</button>
             <button class="btn ghost" id="btn-quit">Menu</button>
           </div>
         `);
         document.getElementById("btn-resume").onclick = () => { TQ.Audio.sfx("click"); game.paused = false; game.hideOverlay(); };
+        document.getElementById("btn-sound2").onclick = (ev) => {
+          const m = TQ.Audio.toggleMuted();
+          soundBtn.textContent = m ? "🔇" : "🔊";
+          ev.target.textContent = m ? "🔇 Son coupé" : "🔊 Son";
+          if (!m) TQ.Audio.sfx("click");
+        };
         document.getElementById("btn-quit").onclick = () => { TQ.Audio.sfx("click"); game.paused = false; game.hideOverlay(); game.startMenu(); };
       } else {
         game.hideOverlay();
       }
     });
-
-    function FLOORNAME(g) { return "Étage " + g.floorIndex; }
 
     game.startMenu();
 
