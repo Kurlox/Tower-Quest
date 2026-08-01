@@ -65,6 +65,12 @@
       const { ctx } = this;
       this.time += 1;
       const maze = scene.maze, player = scene.player;
+      // Palette des murs teintée selon l'étage (variété visuelle en montant).
+      const h = 262 - (scene.floorIndex || 0) * 14;
+      this.wallCol = {
+        base: `hsl(${h}, 36%, 16%)`, brick: `hsl(${h}, 40%, 23%)`,
+        edge: `hsl(${h}, 46%, 40%)`, hi: `hsl(${(h + 12) % 360}, 55%, 58%)`
+      };
       this.centerOn(player.cx, player.cy, maze, player);
 
       // Secousse d'écran.
@@ -216,20 +222,20 @@
     _wall(px, py, tx, ty, maze) {
       const { ctx } = this;
       // Bloc de brique deux tons + liseré haut si de l'air au-dessus.
-      ctx.fillStyle = "#241a3d";
+      const wc = this.wallCol || { base: "#241a3d", brick: "#2f2352", edge: "#4a3a86", hi: "#6a54c0" };
+      ctx.fillStyle = wc.base;
       ctx.fillRect(px, py, T, T);
-      ctx.fillStyle = "#2f2352";
+      ctx.fillStyle = wc.brick;
       // motif brique
-      const row = ty % 2 === 0 ? 0 : T / 2;
       ctx.fillRect(px + 1, py + 1, T / 2 - 2, T / 2 - 2);
       ctx.fillRect(px + T / 2 + 1, py + 1, T / 2 - 2, T / 2 - 2);
       ctx.fillRect(px + 1, py + T / 2 + 1, T / 2 - 2, T / 2 - 2);
       ctx.fillRect(px + T / 2 + 1, py + T / 2 + 1, T / 2 - 2, T / 2 - 2);
-      // liseré supérieur (herbe / rebord) si tuile du dessus non pleine
+      // liseré supérieur (rebord) si tuile du dessus non pleine
       if (ty > 0 && maze.tiles[ty - 1][tx] !== global.TQ.TILE.WALL) {
-        ctx.fillStyle = "#4a3a86";
+        ctx.fillStyle = wc.edge;
         ctx.fillRect(px, py, T, 3);
-        ctx.fillStyle = "#6a54c0";
+        ctx.fillStyle = wc.hi;
         ctx.fillRect(px, py, T, 1);
       }
     }

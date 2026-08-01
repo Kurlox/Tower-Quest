@@ -150,6 +150,11 @@ canvas#game {
   color: var(--accent2);
   letter-spacing: 1px;
   text-shadow: 0 2px 0 #2a1a5a;
+  animation: titleGlow 3s ease-in-out infinite;
+}
+@keyframes titleGlow {
+  0%, 100% { text-shadow: 0 2px 0 #2a1a5a, 0 0 12px rgba(55, 224, 200, 0.3); }
+  50%      { text-shadow: 0 2px 0 #2a1a5a, 0 0 26px rgba(55, 224, 200, 0.75); }
 }
 .overlay-card h2 { margin: 0 0 14px; font-size: 20px; color: var(--accent); }
 .overlay-card p { margin: 8px 0; font-size: 15px; line-height: 1.5; color: #cfc9f5; }
