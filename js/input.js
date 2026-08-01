@@ -133,9 +133,10 @@
     surface.addEventListener("touchcancel", end, { passive: false });
   }
 
-  // Empêche le scroll / zoom parasite sur mobile.
+  // Empêche le scroll / zoom / menu contextuel parasite sur mobile.
   document.addEventListener("gesturestart", (e) => e.preventDefault());
   document.addEventListener("touchmove", (e) => { if (e.cancelable) e.preventDefault(); }, { passive: false });
+  document.addEventListener("contextmenu", (e) => e.preventDefault()); // appui long
 
   function clearAll() {
     for (const k in state) state[k] = false;

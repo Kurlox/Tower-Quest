@@ -59,6 +59,7 @@
       this.fade = 0;        // fondu de transition d'étage (1 → 0)
       this.revealTimer = 0; // brouillard levé par la lanterne (en frames)
       this.timeMs = 0;      // chrono de la partie
+      this.confetti = [];   // confettis de l'écran de victoire
       this._airFrames = 0;
       this._wasGround = false;
       this.bestMs = parseInt(localStorage.getItem("tq_best") || "0", 10) || 0;
@@ -79,6 +80,46 @@
       return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
     }
     floorName() { const d = FLOORS[this.floorIndex]; return d ? d.name : "—"; }
+
+    // Grand titre d'étage animé à l'arrivée.
+    _showFloorCard(name) {
+      const el = document.getElementById("floor-card");
+      if (!el) return;
+      el.textContent = name || "";
+      el.classList.remove("show");
+      void el.offsetWidth; // reflow → relance l'animation
+      el.classList.add("show");
+    }
+
+    /* ---- Confettis de victoire (espace écran, derrière la carte) ---- */
+    _spawnConfetti(n) {
+      const cols = ["#7c5cff", "#37e0c8", "#ff5470", "#ffd9a8", "#ffb347", "#9bf7e8"];
+      const vw = this.renderer.vw, vh = this.renderer.vh;
+      for (let i = 0; i < n; i++)
+        this.confetti.push({
+          x: Math.random() * vw, y: -20 - Math.random() * vh * 0.5,
+          vx: (Math.random() - 0.5) * 2.2, vy: 1 + Math.random() * 3,
+          rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 0.3,
+          size: 4 + Math.random() * 5, color: cols[(Math.random() * cols.length) | 0]
+        });
+    }
+    _updateConfetti() {
+      const vh = this.renderer.vh;
+      for (const c of this.confetti) { c.vy += 0.05; c.x += c.vx; c.y += c.vy; c.rot += c.vr; }
+      this.confetti = this.confetti.filter(c => c.y < vh + 20);
+      if (this.confetti.length < 30) this._spawnConfetti(30);
+    }
+    _drawConfetti() {
+      const ctx = this.renderer.ctx;
+      ctx.setTransform(this.renderer.dpr, 0, 0, this.renderer.dpr, 0, 0);
+      for (const c of this.confetti) {
+        ctx.save();
+        ctx.translate(c.x, c.y); ctx.rotate(c.rot);
+        ctx.fillStyle = c.color;
+        ctx.fillRect(-c.size / 2, -c.size / 2, c.size, c.size * 0.6);
+        ctx.restore();
+      }
+    }
     // Affiche/masque le bouton « ↩ retour aux portes ».
     _showBack(v) { if (this._ui.back) this._ui.back.classList.toggle("hidden", !v); }
     // Ressortir immédiatement vers le hall (bouton HUD).
@@ -113,6 +154,7 @@
     startMenu() {
       this.mode = "menu";
       this._showBack(false);
+      this.confetti = [];
       TQ.Particles.clear();
       TQ.Audio.music("menu");
       const best = this.bestMs ? `<p class="keys">🏆 Meilleur temps : <b>${Game.fmtTime(this.bestMs)}</b></p>` : "";
@@ -144,6 +186,8 @@
       this.floorIndex = index;
       const def = FLOORS[index];
       this.fade = 1; // fondu d'entrée d'étage
+      this.confetti = [];
+      this._showFloorCard(def.name);
       this.updateHUD();
       if (def.kind === "tutorial") {
         this._loadTutorial();
@@ -309,6 +353,7 @@
     _victory() {
       this.mode = "end";
       this._showBack(false);
+      this._spawnConfetti(90);
       TQ.Audio.music("victory");
       TQ.Audio.sfx("victory");
       const t = this.timeMs;
@@ -340,7 +385,8 @@
 
     /* ============================ Boucle ============================ */
     update() {
-      if (this.paused || this.mode === "menu" || this.mode === "end") return;
+      if (this.mode === "end") { this._updateConfetti(); return; }
+      if (this.paused || this.mode === "menu") return;
       this.timeMs += 1000 / 60;
       if (this.tpCooldown > 0) this.tpCooldown--;
       if (this.flash > 0) this.flash--;
@@ -518,6 +564,7 @@
       if (this.mode === "menu" || this.mode === "end") {
         // Fond animé minimal derrière l'overlay (sans brouillard).
         if (this.scene) this.renderer.render({ maze: this.scene, player: this.player, floorIndex: this.floorIndex });
+        if (this.mode === "end") this._drawConfetti();
         return;
       }
       this.renderer.render(scene);

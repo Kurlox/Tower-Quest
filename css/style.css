@@ -95,6 +95,29 @@ canvas#game {
 }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* ---------- Grand titre d'étage ---------- */
+#floor-card {
+  position: absolute;
+  top: 24%; left: 50%;
+  transform: translateX(-50%);
+  font-size: clamp(30px, 8vw, 58px);
+  font-weight: bold;
+  letter-spacing: 2px;
+  color: var(--accent2);
+  text-shadow: 0 3px 0 #2a1a5a, 0 0 26px rgba(55, 224, 200, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 6;
+  white-space: nowrap;
+}
+#floor-card.show { animation: floorCard 2.2s ease forwards; }
+@keyframes floorCard {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(-18px) scale(0.82); }
+  16%  { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  72%  { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-8px) scale(1.06); }
+}
+
 /* ---------- Overlay ---------- */
 .overlay {
   position: absolute;
