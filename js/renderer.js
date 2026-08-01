@@ -253,71 +253,18 @@
       const tpx = this.time;
       for (const e of scene.maze.entities) {
         if (e.taken) continue; // lanterne déjà ramassée
-        const px = (e.type === "patrol" && e.x != null) ? e.x - T / 2 : e.tx * T;
-        const py = e.ty * T;
+        const px = e.tx * T, py = e.ty * T;
         switch (e.type) {
           case "spike": this._spike(px, py); break;
-          case "patrol": this._patrol(px, py, tpx); break;
-          case "teleporter": this._teleporter(px, py, e.variant, tpx); break;
+          case "teleporter": this._teleporter(px, py, tpx); break;
           case "exit": this._exit(px, py, tpx); break;
           case "deadend": this._deadend(px, py); break;
           case "flash": this._flash(px, py, tpx); break;
-          case "gem": this._gem(px, py, tpx); break;
           case "torch": this._torch(px, py, tpx); break;
           case "banner": this._banner(px, py, e); break;
           case "door": this._door(px, py, e, tpx); break;
         }
       }
-    }
-
-    _patrol(px, py, tpx) {
-      const { ctx } = this;
-      const cx = px + T / 2, cy = py + T / 2, r = T * 0.34;
-      const rot = tpx * 0.18;
-      // Pointes
-      ctx.fillStyle = "#c9c9d6";
-      for (let i = 0; i < 8; i++) {
-        const a = rot + i * Math.PI / 4;
-        ctx.beginPath();
-        ctx.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
-        ctx.lineTo(cx + Math.cos(a + 0.2) * r * 0.6, cy + Math.sin(a + 0.2) * r * 0.6);
-        ctx.lineTo(cx + Math.cos(a) * r * 1.5, cy + Math.sin(a) * r * 1.5);
-        ctx.closePath(); ctx.fill();
-      }
-      // Corps
-      ctx.fillStyle = "#3a2030";
-      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = "#ff5470"; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(cx, cy, r * 0.6, 0, Math.PI * 2); ctx.stroke();
-      // Œil menaçant
-      ctx.fillStyle = "#ff5470";
-      ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fill();
-    }
-
-    _gem(px, py, tpx) {
-      const { ctx } = this;
-      const cx = px + T / 2, cy = py + T / 2 + Math.sin(tpx * 0.1 + px) * 1.5;
-      const sw = 0.6 + 0.4 * Math.abs(Math.sin(tpx * 0.08)); // scintillement
-      const rw = T * 0.26, rh = T * 0.34;
-      // Halo
-      const g = ctx.createRadialGradient(cx, cy, 1, cx, cy, T * 0.7);
-      g.addColorStop(0, `rgba(55,224,200,${0.35 * sw})`);
-      g.addColorStop(1, "rgba(55,224,200,0)");
-      ctx.fillStyle = g;
-      ctx.fillRect(px - T * 0.3, py - T * 0.3, T * 1.6, T * 1.6);
-      // Diamant
-      ctx.fillStyle = "#37e0c8";
-      ctx.beginPath();
-      ctx.moveTo(cx, cy - rh); ctx.lineTo(cx + rw, cy - rh * 0.2);
-      ctx.lineTo(cx, cy + rh); ctx.lineTo(cx - rw, cy - rh * 0.2);
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = "#9bf7e8";
-      ctx.beginPath();
-      ctx.moveTo(cx, cy - rh); ctx.lineTo(cx + rw * 0.5, cy - rh * 0.2);
-      ctx.lineTo(cx, cy + rh * 0.3); ctx.lineTo(cx - rw * 0.5, cy - rh * 0.2);
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = "#eafffb";
-      ctx.fillRect(cx - 1.5, cy - rh * 0.7, 2, 4);
     }
 
     _torch(px, py, tpx) {
@@ -389,26 +336,27 @@
       ctx.fillRect(px, py + T - 2, T, 2);
     }
 
-    _teleporter(px, py, variant, tpx) {
+    _teleporter(px, py, tpx) {
       const { ctx } = this;
-      const colors = { closer: "#37e0c8", far: "#ffb347", entrance: "#ff5470" };
-      const c = colors[variant] || "#9b7cff";
       const cx = px + T / 2, cy = py + T / 2;
       const pulse = 0.5 + 0.5 * Math.sin(tpx * 0.12);
+      // Teinte qui dérive dans le spectre → effet « imprévisible ».
+      const hue = (tpx * 2) % 360;
+      const c = `hsl(${hue}, 80%, 65%)`;
       ctx.save();
       ctx.globalAlpha = 0.25 + 0.2 * pulse;
       ctx.fillStyle = c;
       ctx.beginPath(); ctx.arc(cx, cy, T * 0.5, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
-      ctx.strokeStyle = c;
       ctx.lineWidth = 2;
       for (let k = 0; k < 3; k++) {
+        ctx.strokeStyle = `hsl(${(hue + k * 40) % 360}, 80%, 65%)`;
         const a = tpx * 0.1 + (k * Math.PI * 2) / 3;
         ctx.beginPath();
         ctx.arc(cx, cy, T * 0.28 + k, a, a + Math.PI * 1.1);
         ctx.stroke();
       }
-      ctx.fillStyle = c;
+      ctx.fillStyle = "#ffffff";
       ctx.beginPath(); ctx.arc(cx, cy, 2.5, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     }

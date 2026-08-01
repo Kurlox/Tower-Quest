@@ -396,10 +396,10 @@
           if (this.tiles[y][x] !== TILE.WALL && safe(x, y) && !onPath(x, y))
             openSpots.push({ x, y });
       this.rng.shuffle(openSpots);
-      const tps = opts.teleporters || [];
+      const nTp = opts.teleporters || 0; // téléporteurs (effet aléatoire au passage)
       let spotIdx = 0;
-      for (let i = 0; i < tps.length && spotIdx < openSpots.length; i++, spotIdx++)
-        ents.push({ type: "teleporter", variant: tps[i], tx: openSpots[spotIdx].x, ty: openSpots[spotIdx].y });
+      for (let i = 0; i < nTp && spotIdx < openSpots.length; i++, spotIdx++)
+        ents.push({ type: "teleporter", tx: openSpots[spotIdx].x, ty: openSpots[spotIdx].y });
 
       // -- Lanterne : loin de l'entrée.
       if (opts.flash !== false) {
@@ -410,49 +410,6 @@
           if (d > bestD) { bestD = d; best = s; }
         }
         if (best) ents.push({ type: "flash", tx: best.x, ty: best.y });
-      }
-
-      // -- Gemmes : récompense d'exploration (optionnelles), sur des cases
-      //    atteignables et bien réparties.
-      const gemCount = opts.gems || 0;
-      if (gemCount > 0 && this.reach) {
-        const cand = [];
-        for (const k of this.reach) {
-          const [x, y] = k.split(",").map(Number);
-          if (safe(x, y)) cand.push({ x, y });
-        }
-        this.rng.shuffle(cand);
-        const placed = [];
-        for (const c of cand) {
-          if (placed.length >= gemCount) break;
-          if (placed.every(p => Math.abs(p.x - c.x) + Math.abs(p.y - c.y) > 3)) {
-            placed.push(c);
-            ents.push({ type: "gem", tx: c.x, ty: c.y });
-          }
-        }
-      }
-
-      // -- Rôdeurs : pièges MOBILES qui patrouillent un couloir. Jamais sur
-      //    l'itinéraire de la sortie, sur une plateforme avec de la place.
-      const patrolCount = opts.patrols || 0;
-      if (patrolCount > 0) {
-        const pspots = [];
-        for (let y = 2; y < this.h - 1; y++)
-          for (let x = 2; x < this.w - 2; x++)
-            if (this.tiles[y][x] === TILE.OPEN && this.tiles[y + 1][x] === TILE.WALL &&
-                this._openT(x - 1, y) && this._openT(x + 1, y) &&
-                this._solidT(x - 1, y + 1) && this._solidT(x + 1, y + 1) &&
-                safe(x, y) && !onPath(x, y))
-              pspots.push({ x, y });
-        this.rng.shuffle(pspots);
-        const placed = [];
-        for (const s of pspots) {
-          if (placed.length >= patrolCount) break;
-          if (placed.every(p => Math.abs(p.x - s.x) + Math.abs(p.y - s.y) > 4)) {
-            placed.push(s);
-            ents.push({ type: "patrol", tx: s.x, ty: s.y });
-          }
-        }
       }
 
       // -- Marqueur de sortie / cul-de-sac.
@@ -492,6 +449,17 @@
       cand.sort((a, b) => this.cellDist[b.y][b.x] - this.cellDist[a.y][a.x]);
       const idx = Math.floor(cand.length * 0.4);
       return cand[Math.min(idx, cand.length - 1)];
+    }
+
+    // Cellule parmi les PLUS éloignées de la sortie (téléporteur « éloigne »).
+    farCell() {
+      const cand = [];
+      for (let y = 0; y < this.cellRows; y++)
+        for (let x = 0; x < this.cellCols; x++)
+          if (isFinite(this.cellDist[y][x]) && this.cellDist[y][x] >= this.maxDist * 0.65)
+            cand.push({ x, y });
+      if (!cand.length) return { x: this.entranceCell.x, y: this.entranceCell.y };
+      return cand[Math.floor(Math.random() * cand.length)];
     }
   }
 

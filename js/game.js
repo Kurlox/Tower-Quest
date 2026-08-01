@@ -59,7 +59,6 @@
       this.fade = 0;        // fondu de transition d'étage (1 → 0)
       this.revealTimer = 0; // brouillard levé par la lanterne (en frames)
       this.timeMs = 0;      // chrono de la partie
-      this.gems = 0;        // gemmes collectées
       this._airFrames = 0;
       this._wasGround = false;
       this.bestMs = parseInt(localStorage.getItem("tq_best") || "0", 10) || 0;
@@ -69,8 +68,7 @@
         toast: document.getElementById("toast"),
         floor: document.getElementById("floor-label"),
         deaths: document.getElementById("deaths-label"),
-        time: document.getElementById("time-label"),
-        gems: document.getElementById("gem-label")
+        time: document.getElementById("time-label")
       };
       this._toastTimer = null;
     }
@@ -99,7 +97,6 @@
       this._ui.floor.textContent = def ? def.name : "—";
       this._ui.deaths.textContent = "☠ " + this.deaths;
       if (this._ui.time) this._ui.time.textContent = Game.fmtTime(this.timeMs);
-      if (this._ui.gems) this._ui.gems.textContent = "💎 " + this.gems;
     }
 
     /* ============================ Démarrage ============================ */
@@ -125,7 +122,7 @@
       `);
       document.getElementById("btn-play").onclick = () => {
         TQ.Audio.resume(); TQ.Audio.sfx("click");
-        this.deaths = 0; this.timeMs = 0; this.gems = 0;
+        this.deaths = 0; this.timeMs = 0;
         this.hideOverlay();
         this.goToFloor(0);
       };
@@ -148,8 +145,8 @@
       const seed = TQ.makeSeed(this.runSeed, 999, 1);
       const maze = TQ.generateMaze({
         cols: 7, rows: 5, seed, hasExit: true,
-        braid: 0.04, spikes: 1, gems: 2,
-        teleporters: ["closer", "entrance"] // 2 max (rapproche + renvoie à l'entrée)
+        braid: 0.04, spikes: 1,
+        teleporters: 2 // effet aléatoire au passage (1/3 entrée · 1/3 loin · 1/3 près)
       });
       this.scene = maze;
       this.mode = "maze";
@@ -221,13 +218,11 @@
       const f = this.floorIndex;
       const def = FLOORS[f];
       const seed = TQ.makeSeed(this.runSeed, f, doorIndex + 1);
-      const rng = new TQ.RNG(seed);
       if (def.kind === "final") {
-        // Labyrinthe géant ultra dur (2 téléporteurs max, comme partout).
+        // Labyrinthe géant ultra dur.
         return {
           cols: TOWER_WIDTH, rows: 18, seed, hasExit: true, braid: 0.16,
-          spikes: 20, gems: 8, patrols: 3,
-          teleporters: this._teleMix(rng, 2, true)
+          spikes: 20, teleporters: 2
         };
       }
       const rows = 5 + f;                     // hauteur croissante → tour qui grandit
@@ -236,18 +231,8 @@
       return {
         cols: TOWER_WIDTH, rows, seed, hasExit,
         braid: 0.05 + f * 0.015,
-        spikes, gems: 3 + f, patrols: Math.min(2, Math.max(0, f - 1)),
-        teleporters: this._teleMix(rng, nTele, false)
+        spikes, teleporters: nTele
       };
-    }
-
-    _teleMix(rng, n, hard) {
-      const bag = hard
-        ? ["far", "far", "entrance", "entrance", "closer"]
-        : ["closer", "far", "entrance"];
-      const out = [];
-      for (let i = 0; i < n; i++) out.push(rng.pick(bag));
-      return out;
     }
 
     /* ============================ Entrer / sortir ============================ */
@@ -311,14 +296,14 @@
         <h1>VICTOIRE !</h1>
         <h2>La tour est vaincue</h2>
         <p>Tu as traversé le labyrinthe géant et percé la Curiosity.</p>
-        <p>⏱ Temps : <b>${Game.fmtTime(t)}</b> · ☠ Morts : <b>${this.deaths}</b> · 💎 <b>${this.gems}</b></p>
+        <p>⏱ Temps : <b>${Game.fmtTime(t)}</b> · ☠ Morts : <b>${this.deaths}</b></p>
         ${record}
         <button class="btn" id="btn-again">Rejouer</button>
       `);
       document.getElementById("btn-again").onclick = () => {
         TQ.Audio.sfx("click");
         this.runSeed = (Math.random() * 0xffffffff) >>> 0;
-        this.deaths = 0; this.timeMs = 0; this.gems = 0;
+        this.deaths = 0; this.timeMs = 0;
         TQ.Particles.clear();
         this.hideOverlay();
         this.goToFloor(0);
@@ -405,20 +390,6 @@
             this._die();
             return;
           }
-        } else if (e.type === "patrol") {
-          // Rôdeur : avance et rebondit sur les murs / bords de plateforme.
-          if (e.x == null) { e.x = (e.tx + 0.5) * T; e.dir = 1; }
-          const speed = 1.05;
-          e.x += e.dir * speed;
-          const aheadTx = Math.floor((e.x + e.dir * T * 0.55) / T);
-          if (maze.isSolid(aheadTx, e.ty) || maze.isSolid(aheadTx, e.ty - 1) ||
-              !maze.isSolid(aheadTx, e.ty + 1)) {
-            e.dir *= -1; e.x += e.dir * speed;
-          }
-          if (Math.abs(p.cx - e.x) < T * 0.55 && Math.abs(p.cy - (e.ty + 0.5) * T) < T * 0.6) {
-            this._die();
-            return;
-          }
         } else if (e.type === "teleporter") {
           if (this.tpCooldown <= 0 && p.tileX() === e.tx && p.tileY() === e.ty) {
             this._teleport(e, maze);
@@ -426,14 +397,6 @@
           }
         } else if (e.type === "exit") {
           if (p.overlapsTile(e.tx, e.ty, 4)) { this._reachExit(); return; }
-        } else if (e.type === "gem") {
-          if (!e.taken && p.overlapsTile(e.tx, e.ty, 2)) {
-            e.taken = true;
-            this.gems++;
-            this.updateHUD();
-            TQ.Audio.sfx("gem");
-            TQ.Particles.sparkle((e.tx + 0.5) * T, (e.ty + 0.5) * T, "#37e0c8", 12);
-          }
         } else if (e.type === "flash") {
           if (!e.taken && p.overlapsTile(e.tx, e.ty, 3)) {
             e.taken = true;              // masquée par le renderer une fois prise
@@ -467,24 +430,24 @@
     _teleport(e, maze) {
       const p = this.player;
       const curCell = maze.cellAtTile(e.tx, e.ty);
-      const col = { closer: "#37e0c8", far: "#ffb347", entrance: "#ff5470" }[e.variant] || "#9b7cff";
       TQ.Audio.sfx("teleport");
-      TQ.Particles.sparkle((e.tx + 0.5) * T, (e.ty + 0.5) * T, col, 18);
-      let target, msg;
-      if (e.variant === "entrance") {
-        // Retour direct sur la case d'entrée (où l'on tient).
+      TQ.Particles.sparkle((e.tx + 0.5) * T, (e.ty + 0.5) * T, "#9b7cff", 18);
+      // Effet ALÉATOIRE à chaque passage : 1/3 entrée · 1/3 loin · 1/3 près.
+      const roll = Math.random();
+      let target, msg, col;
+      if (roll < 1 / 3) {
         p.spawnAtTile(maze.entranceTile.tx, maze.entranceTile.ty, false);
         this.renderer.snapCam();
-        TQ.Particles.sparkle(p.cx, p.cy, col, 14);
+        TQ.Particles.sparkle(p.cx, p.cy, "#ff5470", 14);
         this.tpCooldown = 40; this.flash = 10;
         this.toast("✦ Téléporteur : retour à l'entrée !", 1800);
         return;
-      } else if (e.variant === "closer") {
+      } else if (roll < 2 / 3) {
         target = maze.closerCell(curCell);
-        msg = "✦ Téléporteur : plus près de la sortie !";
-      } else { // far
-        target = maze.randomOpenCell();
-        msg = "✦ Téléporteur : projeté au hasard !";
+        msg = "✦ Téléporteur : plus près de la sortie !"; col = "#37e0c8";
+      } else {
+        target = maze.farCell();
+        msg = "✦ Téléporteur : projeté loin de la sortie !"; col = "#ffb347";
       }
       const c = maze.cellCenterTile(target.x, target.y);
       p.spawnAtTile(c.tx, c.ty, false);
